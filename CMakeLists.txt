@@ -8,6 +8,7 @@ include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_parties)
 
 set(EXAMPLES
         audio/TimeStretchEffect.cpp
@@ -18,6 +19,11 @@ foreach(EXAMPLE ${EXAMPLES})
     string(REGEX REPLACE ".cpp" "" EXE ${tmp1})
     add_executable(${EXE}
             ${EXAMPLE})
+    target_sources(
+            ${EXE}
+            PRIVATE
+            common/Utilities.cpp
+    )
     target_link_libraries(${EXE}
             ${CONAN_LIBS})
 endforeach()
