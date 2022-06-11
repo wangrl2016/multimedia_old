@@ -12,6 +12,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_parties)
 
 set(EXAMPLES
         audio/TimeStretchEffect.cpp
+        audio/WavFormat.cpp
         )
 
 foreach(EXAMPLE ${EXAMPLES})
