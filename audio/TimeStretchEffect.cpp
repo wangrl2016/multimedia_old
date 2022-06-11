@@ -30,7 +30,7 @@ extern "C" {
  *
  * @param srcData [out] 原始数据
  * @param srcSize [out] 原始数据大小，byte为单位
- * @param tempo 变速大小，范围为[0.5, 100.0]
+ * @param param 变速大小，范围为[0.5, 100.0]
  * @param channelCount 原始数据声道数
  * @param sampleRate 原始数据采样率
  * @param sampleFormat 原始数据采样率
@@ -38,7 +38,7 @@ extern "C" {
  */
 bool timeStretch(void** srcData,
                  size_t& srcSize,
-                 float tempo = 1.0,
+                 float param = 1.0,
                  int64_t channelLayout = AV_CH_LAYOUT_MONO,
                  int sampleRate = 16000,
                  AVSampleFormat sampleFormat = AV_SAMPLE_FMT_S16) {
@@ -46,8 +46,8 @@ bool timeStretch(void** srcData,
     // The filter chain it uses is:
     // (input) -> abuffer -> atempo -> aformat -> abuffersink -> (output)
     // abuffer: This provides the endpoint where you can feed the decoded samples.
-    // atempo: The filter accepts exactly one parameter, the audio tempo.
-    // If not specified then the filter will assume nominal 1.0 tempo.
+    // atempo: The filter accepts exactly one parameter, the audio param.
+    // If not specified then the filter will assume nominal 1.0 param.
     // Tempo must be in the [0.5, 100.0] range.
     // aformat: This converts the samples to the sample freq, channel layout,
     // and sample format required by the audio device.
@@ -74,9 +74,9 @@ bool timeStretch(void** srcData,
         return false;
     }
     // Set the filter options through the AVOptions API.
-    char chLayout[64];
-    av_get_channel_layout_string(chLayout, sizeof(chLayout), 1, channelLayout);
-    av_opt_set(abufferCtx, "channel_layout", chLayout, AV_OPT_SEARCH_CHILDREN);
+    char chLayoutStr[64];
+    av_get_channel_layout_string(chLayoutStr, sizeof(chLayoutStr), 1, channelLayout);
+    av_opt_set(abufferCtx, "channel_layout", chLayoutStr, AV_OPT_SEARCH_CHILDREN);
     av_opt_set(abufferCtx, "sample_fmt", av_get_sample_fmt_name(sampleFormat), AV_OPT_SEARCH_CHILDREN);
     av_opt_set_q(abufferCtx, "time_base", (AVRational) {1, sampleRate}, AV_OPT_SEARCH_CHILDREN);
     av_opt_set_int(abufferCtx, "sample_rate", sampleRate, AV_OPT_SEARCH_CHILDREN);
@@ -99,9 +99,10 @@ bool timeStretch(void** srcData,
         LOG(ERROR) << "Could not allocate the atempo instance";
         return false;
     }
+
     // A different way of passing the options is as key/value pairs in a dictionary.
     AVDictionary* optionsDict = nullptr;
-    av_dict_set(&optionsDict, "atempo", AV_STRINGIFY(tempo), 0);
+    av_dict_set(&optionsDict, "tempo", AV_STRINGIFY(0.6), 0);
     err = avfilter_init_dict(atempoCtx, &optionsDict);
     av_dict_free(&optionsDict);
     if (err < 0) {
@@ -173,8 +174,7 @@ bool timeStretch(void** srcData,
 
     // 分配内存存储生成的数据，比实际需要的要大
     // 目的是避免频繁分配
-    auto destSize = int(float(srcSize) / tempo + 8192);
-
+    auto destSize = int(float(srcSize) / param + 8192);
     void* destData = calloc(destSize, sizeof(uint8_t));
     if (!destData) {
         LOG(ERROR) << "Error allocating buffer";
@@ -188,31 +188,21 @@ bool timeStretch(void** srcData,
         return false;
     }
 
-//    int frameNum = 0;
-//    // Set up the frame properties and allocate the buffer for the data.
-//    frame->sample_rate = sampleRate;
-//    frame->format = sampleFormat;
-//    frame->channel_layout = channelLayout;
-//    frame->channels = 1;
-//    frame->nb_samples = 1024;
-//    frame->pts = frameNum * 1024;
-//
-//    err = av_frame_get_buffer(frame, 0);
-//    if (err < 0) {
-//        LOG(ERROR) << "Error frame get buffer";
-//        return false;
-//    }
-
-//    // Fill the data for each channel.
-//    auto* data = (int16_t*) frame->extended_data[0];
-
     int srcIndex = 0; // 记录目前处理过的原始数据下标，以byte为单位
     int destIndex = 0; // 记录目前生成的目标数据下标，以byte为单位
     int bytesPerSample = av_get_bytes_per_sample(sampleFormat);
-    int frameNum = 0;
+
+    std::ofstream ofs0("out/0.pcm");
+    ofs0.write((char*) (*srcData), srcSize);
+
+    std::ofstream ofsFrame("out/1.pcm");
+    std::ofstream ofs2("out/2.pcm");
+    std::ofstream ofs3("out/3.pcm");
     while (srcIndex < srcSize) {
         // 存在srcSize - srcIndex < frame->nb_samples * bytesPerSamples的情况
         if (srcSize - srcIndex < 1024 * bytesPerSample) {
+            LOG(INFO) << "srcIndex " << srcIndex << ", srcSize " << srcSize;
+            // TODO:
             break;
         } else {
             frame->sample_rate = sampleRate;
@@ -226,18 +216,15 @@ bool timeStretch(void** srcData,
                 return false;
             }
 
-            auto* data = (int16_t*) frame->data[0];
+            ofsFrame.write(((char*) (*srcData)) + srcIndex, frame->nb_samples * bytesPerSample);
+
+            auto* data = (int16_t*) frame->extended_data[0];
             // 将数据复制进入frame中
-            // memcpy(data, &((*srcData)[srcIndex]), frame->nb_samples * bytesPerSample);
-            memcpy(data, (int16_t*)(*srcData) + int (srcIndex / bytesPerSample), frame->nb_samples * bytesPerSample);
-//            for (int j = 0; j < frame->nb_samples; j++) {
-//                data[j] = sin(2 * M_PI * (frameNum + j) * (0 + 1) / 1024);
-//            }
-//            frameNum++;
-//            frameNum++;
-//            frame->pts = frameNum * 1024;
+            memcpy(data, ((char*)(*srcData)) + srcIndex, frame->nb_samples * bytesPerSample);
             srcIndex += frame->nb_samples * bytesPerSample;
         }
+
+        ofs2.write((char*) frame->extended_data[0], frame->nb_samples * bytesPerSample);
 
         // Send the frame to the input of the filter graph.
         err = av_buffersrc_add_frame(abufferCtx, frame);
@@ -250,13 +237,14 @@ bool timeStretch(void** srcData,
         // Get all the filtered output that is available.
         while (av_buffersink_get_frame(abuffersinkCtx, frame) >= 0) {
             int frameSize = frame->nb_samples * bytesPerSample;
+            ofs3.write((char*) frame->extended_data[0], frameSize);
             // 只处理第0声道的数据
             if (frameSize + destIndex > destSize) {
                 // frameSize = destSize - destIndex;
                 LOG(WARNING) << "Malloc buffer small, frameSize " << frameSize << " bytesPerSample " << bytesPerSample;
                 return false;
             }
-            memcpy(destData, frame->data[0], frameSize);
+            memcpy(((char*)destData) + destIndex, frame->extended_data[0], frameSize);
             destIndex += frameSize;
 
             av_frame_unref(frame);
@@ -286,17 +274,15 @@ int main(int argc, char* argv[]) {
     google::InitGoogleLogging(argv[0]);
     FLAGS_stderrthreshold = google::INFO;
 
-    size_t fileSize = std::filesystem::file_size(argv[1]);
-    LOG(INFO) << "fileSize " << fileSize;
-
-    size_t bufferSize = fileSize * sizeof(int16_t);
-    auto* bufferData = (uint8_t*) calloc(bufferSize, sizeof(uint8_t));
+    size_t bufferSize = std::filesystem::file_size(argv[1]);  // byte为单位
+    LOG(INFO) << "bufferSize " << bufferSize << " bytes";
+    void* bufferData = calloc(bufferSize, sizeof(uint8_t));
 
     std::ifstream ifs;
     ifs.open(argv[1], std::ios::binary);
     ifs.read((char*) bufferData, (long) bufferSize);
 
-    bool ret = timeStretch((void**) &bufferData, bufferSize, 0.6);
+    bool ret = timeStretch(&bufferData, bufferSize, 0.6);
     if (!ret) {
         LOG(WARNING) << "Time stretch failed";
     }
