@@ -89,6 +89,10 @@
 
 采用FFmpeg的filter模块进行变速，输入一块内存和大小，输出另外一块内存和大小。
 
+```
+ffplay -f s16le -ac 1 -ar 16000 time_stretch.pcm
+```
+
 ### 41. 音乐基础知识
 
 ### 42. 五线谱

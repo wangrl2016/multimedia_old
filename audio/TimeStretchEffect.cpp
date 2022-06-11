@@ -188,39 +188,56 @@ bool timeStretch(void** srcData,
         return false;
     }
 
-    int frameNum = 0;
-    // Set up the frame properties and allocate the buffer for the data.
-    frame->sample_rate = sampleRate;
-    frame->format = sampleFormat;
-    frame->channel_layout = channelLayout;
-    frame->channels = 1;
-    frame->nb_samples = 1024;
-    frame->pts = frameNum * 1024;
+//    int frameNum = 0;
+//    // Set up the frame properties and allocate the buffer for the data.
+//    frame->sample_rate = sampleRate;
+//    frame->format = sampleFormat;
+//    frame->channel_layout = channelLayout;
+//    frame->channels = 1;
+//    frame->nb_samples = 1024;
+//    frame->pts = frameNum * 1024;
+//
+//    err = av_frame_get_buffer(frame, 0);
+//    if (err < 0) {
+//        LOG(ERROR) << "Error frame get buffer";
+//        return false;
+//    }
 
-    err = av_frame_get_buffer(frame, 0);
-    if (err < 0) {
-        LOG(ERROR) << "Error frame get buffer";
-        return false;
-    }
-
-    // Fill the data for each channel.
-    auto* data = (int16_t*) frame->extended_data[0];
+//    // Fill the data for each channel.
+//    auto* data = (int16_t*) frame->extended_data[0];
 
     int srcIndex = 0; // 记录目前处理过的原始数据下标，以byte为单位
     int destIndex = 0; // 记录目前生成的目标数据下标，以byte为单位
     int bytesPerSample = av_get_bytes_per_sample(sampleFormat);
-
+    int frameNum = 0;
     while (srcIndex < srcSize) {
         // 存在srcSize - srcIndex < frame->nb_samples * bytesPerSamples的情况
-        if (srcSize - srcIndex < frame->nb_samples * bytesPerSample) {
-
+        if (srcSize - srcIndex < 1024 * bytesPerSample) {
+            break;
         } else {
+            frame->sample_rate = sampleRate;
+            frame->format = sampleFormat;
+            frame->channel_layout = channelLayout;
+            frame->channels = 1;
+            frame->nb_samples = 1024;
+            err = av_frame_get_buffer(frame, 0);
+            if (err < 0) {
+                LOG(ERROR) << "Error frame get buffer";
+                return false;
+            }
+
+            auto* data = (int16_t*) frame->data[0];
             // 将数据复制进入frame中
-            memcpy(data, srcData, frame->nb_samples * bytesPerSample);
-            frameNum++;
-            frame->pts = frameNum * 1024;
+            // memcpy(data, &((*srcData)[srcIndex]), frame->nb_samples * bytesPerSample);
+            memcpy(data, (int16_t*)(*srcData) + int (srcIndex / bytesPerSample), frame->nb_samples * bytesPerSample);
+//            for (int j = 0; j < frame->nb_samples; j++) {
+//                data[j] = sin(2 * M_PI * (frameNum + j) * (0 + 1) / 1024);
+//            }
+//            frameNum++;
+//            frameNum++;
+//            frame->pts = frameNum * 1024;
+            srcIndex += frame->nb_samples * bytesPerSample;
         }
-        srcIndex += frame->nb_samples * bytesPerSample;
 
         // Send the frame to the input of the filter graph.
         err = av_buffersrc_add_frame(abufferCtx, frame);
@@ -234,22 +251,28 @@ bool timeStretch(void** srcData,
         while (av_buffersink_get_frame(abuffersinkCtx, frame) >= 0) {
             int frameSize = frame->nb_samples * bytesPerSample;
             // 只处理第0声道的数据
-            if (frameSize + destIndex < destSize) {
-                frameSize = destSize - destIndex;
-                LOG(WARNING) << "Malloc buffer small";
+            if (frameSize + destIndex > destSize) {
+                // frameSize = destSize - destIndex;
+                LOG(WARNING) << "Malloc buffer small, frameSize " << frameSize << " bytesPerSample " << bytesPerSample;
+                return false;
             }
-            memcpy(destData, frame->extended_data[0], frameSize);
+            memcpy(destData, frame->data[0], frameSize);
             destIndex += frameSize;
 
-            // av_frame_unref(frame);
+            av_frame_unref(frame);
         }
     }
-
     // 将数据传到原数据中
     if ((*srcData)) {
         free(*srcData);
     }
+
+    std::ofstream ofs("out/dest_data.pcm", std::ios::out | std::ios::binary);
+    ofs.write((const char*) destData, destIndex);
+    ofs.close();
+
     (*srcData) = destData;
+    LOG(INFO) << "destIndex " << destIndex;
     srcSize = destIndex;
 
     avfilter_graph_free(&filterGraph);
@@ -273,9 +296,10 @@ int main(int argc, char* argv[]) {
     ifs.open(argv[1], std::ios::binary);
     ifs.read((char*) bufferData, (long) bufferSize);
 
-    bool ret = timeStretch((void**) &bufferData, bufferSize, 0.8);
-    if (!ret)
+    bool ret = timeStretch((void**) &bufferData, bufferSize, 0.6);
+    if (!ret) {
         LOG(WARNING) << "Time stretch failed";
+    }
 
     std::ofstream ofs("out/time_stretch.pcm", std::ios::out | std::ios::binary);
     ofs.write((const char*) bufferData, (long) bufferSize);
