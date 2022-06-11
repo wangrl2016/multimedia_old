@@ -30,7 +30,7 @@ extern "C" {
  *
  * @param srcData [out] 原始数据
  * @param srcSize [out] 原始数据大小，byte为单位
- * @param param 变速大小，范围为[0.5, 100.0]
+ * @param tempo 变速大小，范围为[0.5, 100.0]
  * @param channelCount 原始数据声道数
  * @param sampleRate 原始数据采样率
  * @param sampleFormat 原始数据采样率
@@ -38,7 +38,7 @@ extern "C" {
  */
 bool timeStretch(void** srcData,
                  size_t& srcSize,
-                 float param = 1.0,
+                 float tempo = 1.0,
                  int64_t channelLayout = AV_CH_LAYOUT_MONO,
                  int sampleRate = 16000,
                  AVSampleFormat sampleFormat = AV_SAMPLE_FMT_S16) {
@@ -46,8 +46,8 @@ bool timeStretch(void** srcData,
     // The filter chain it uses is:
     // (input) -> abuffer -> atempo -> aformat -> abuffersink -> (output)
     // abuffer: This provides the endpoint where you can feed the decoded samples.
-    // atempo: The filter accepts exactly one parameter, the audio param.
-    // If not specified then the filter will assume nominal 1.0 param.
+    // atempo: The filter accepts exactly one parameter, the audio tempo.
+    // If not specified then the filter will assume nominal 1.0 tempo.
     // Tempo must be in the [0.5, 100.0] range.
     // aformat: This converts the samples to the sample freq, channel layout,
     // and sample format required by the audio device.
@@ -102,7 +102,7 @@ bool timeStretch(void** srcData,
 
     // A different way of passing the options is as key/value pairs in a dictionary.
     AVDictionary* optionsDict = nullptr;
-    av_dict_set(&optionsDict, "tempo", AV_STRINGIFY(0.6), 0);
+    av_dict_set(&optionsDict, "tempo", std::to_string(tempo).c_str(), 0);
     err = avfilter_init_dict(atempoCtx, &optionsDict);
     av_dict_free(&optionsDict);
     if (err < 0) {
@@ -174,7 +174,7 @@ bool timeStretch(void** srcData,
 
     // 分配内存存储生成的数据，比实际需要的要大
     // 目的是避免频繁分配
-    auto destSize = int(float(srcSize) / param + 8192);
+    auto destSize = int(float(srcSize) / tempo + 8192);
     void* destData = calloc(destSize, sizeof(uint8_t));
     if (!destData) {
         LOG(ERROR) << "Error allocating buffer";
@@ -282,7 +282,7 @@ int main(int argc, char* argv[]) {
     ifs.open(argv[1], std::ios::binary);
     ifs.read((char*) bufferData, (long) bufferSize);
 
-    bool ret = timeStretch(&bufferData, bufferSize, 0.6);
+    bool ret = timeStretch(&bufferData, bufferSize, 2.5);
     if (!ret) {
         LOG(WARNING) << "Time stretch failed";
     }
