@@ -27,16 +27,20 @@ extern "C" {
 /**
  * 对音频进行变速处理
  *
- * @param srcData [out] 原始数据
- * @param srcSize [out] 原始数据大小，byte为单位
+ * @param srcData 原始数据
+ * @param srcSize 原始数据大小，byte为单位
+ * @param destData [out] 目标数据，需要调用者管理分配的内存
+ * @param destSize [out] 目标数据大小，byte为单位
  * @param tempo 变速大小，范围为[0.5, 100.0]
  * @param channelCount 原始数据声道数
  * @param sampleRate 原始数据采样率
  * @param sampleFormat 原始数据采样率
  * @return 是否变速成功
  */
-bool timeStretch(void** srcData,
-                 size_t& srcSize,
+bool timeStretch(const void* srcData,
+                 size_t srcSize,
+                 void** destData,
+                 size_t& destSize,
                  float tempo = 1.0,
                  int64_t channelLayout = AV_CH_LAYOUT_MONO,
                  int sampleRate = 16000,
@@ -230,9 +234,9 @@ bool timeStretch(void** srcData,
 
     // 分配内存存储生成的数据，比实际需要的要大
     // 没有使用vector的目的是避免频繁分配
-    auto destSize = int(float(srcSize) / tempo + 8192);
-    void* destData = calloc(destSize, sizeof(uint8_t));
-    if (!destData) {
+    auto tempDestSize = int(float(srcSize) / tempo + 8192);
+    void* tempDestData = calloc(tempDestSize, sizeof(uint8_t));
+    if (!tempDestData) {
         LOG(ERROR) << "Error allocating buffer";
         // 释放结构体
         clearFFmpegFilters();
@@ -243,7 +247,7 @@ bool timeStretch(void** srcData,
     AVFrame* frame = av_frame_alloc();
     if (!frame) {
         LOG(ERROR) << "Error allocating the frame";
-        free(destData);
+        free(tempDestData);
         clearFFmpegFilters();
         return false;
     }
@@ -254,17 +258,17 @@ bool timeStretch(void** srcData,
 
     // 避免代码重复
     auto consumeFrame = [&abuffersinkCtx, &frame,
-                         &destIndex, &destSize, &destData, &bytesPerSample]() ->void {
+                         &destIndex, &tempDestSize, &tempDestData, &bytesPerSample]() ->void {
         while (av_buffersink_get_frame(abuffersinkCtx, frame) >= 0) {
             int frameSize = frame->nb_samples * bytesPerSample;
             // 只处理第0声道的数据
-            if (destIndex + frameSize > destSize) {
+            if (destIndex + frameSize > tempDestSize) {
                 // 说明内存分配够不大，或者是哪里有问题
                 LOG(WARNING) << "Malloc buffer small";
                 av_frame_unref(frame);
                 break;
             }
-            memcpy(((char*)destData) + destIndex, frame->extended_data[0], frameSize);
+            memcpy(((char*)tempDestData) + destIndex, frame->extended_data[0], frameSize);
             destIndex += frameSize;
             av_frame_unref(frame);
         }
@@ -286,7 +290,7 @@ bool timeStretch(void** srcData,
         err = av_frame_get_buffer(frame, 0);
         if (err < 0) {
             LOG(ERROR) << "Error frame get buffer";
-            free(destData);
+            free(tempDestData);
             av_frame_free(&frame);
             clearFFmpegFilters();
             return false;
@@ -294,7 +298,7 @@ bool timeStretch(void** srcData,
 
         // 将数据复制进入frame中
         memcpy(frame->extended_data[0],
-               ((char*)(*srcData)) + srcIndex,
+               ((char*)srcData) + srcIndex,
                frame->nb_samples * bytesPerSample);
         srcIndex += frame->nb_samples * bytesPerSample;
 
@@ -316,13 +320,8 @@ bool timeStretch(void** srcData,
         consumeFrame();
     }
 
-    // 将数据传到原数据中
-    if ((*srcData)) {
-        free(*srcData);
-    }
-
-    (*srcData) = destData;
-    srcSize = destIndex;
+    (*destData) = tempDestData;
+    destSize = destIndex;
 
     clearFFmpegFilters();
     av_frame_free(&frame);
@@ -343,16 +342,22 @@ int main(int argc, char* argv[]) {
     ifs.open(argv[1], std::ios::binary);
     ifs.read((char*) bufferData, (long) bufferSize);
 
-    float tempo = 0.85;
-    bool ret = timeStretch(&bufferData, bufferSize, tempo);
+    float tempo = 0.6;
+    void* destData = nullptr;
+    size_t destSize = 0;
+    bool ret = timeStretch(bufferData, bufferSize, &destData, destSize, tempo);
     if (!ret) {
         LOG(WARNING) << "Time stretch failed: tempo " << tempo;
     }
-    LOG(INFO) << "destSize " << bufferSize << " bytes";
+    LOG(INFO) << "destSize " << destSize << " bytes";
 
     std::ofstream ofs("out/time_stretch.pcm", std::ios::out | std::ios::binary);
-    ofs.write((const char*) bufferData, (long) bufferSize);
+    ofs.write((const char*) destData, (long) destSize);
 
+    if (bufferData)
+        free(bufferData);
+    if (destData)
+        free(destData);
     ifs.close();
     ofs.close();
 
