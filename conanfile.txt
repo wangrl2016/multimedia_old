@@ -2,6 +2,8 @@
 ffmpeg/5.0
 gtest/1.11.0
 glog/0.6.0
+imgui/1.87
+sdl/2.0.20
 
 [generators]
 cmake
