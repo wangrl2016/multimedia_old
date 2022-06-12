@@ -141,7 +141,7 @@ int main(int argc, char* argv[]) {
     memcpy(buffer + 44, bufferData, bufferSize);
 
     std::ofstream ofs("out/wav_format.wav", std::ios::out | std::ios::binary);
-    ofs.write(buffer, bufferSize + 44);
+    ofs.write(buffer, int(bufferSize) + 44);
     ofs.close();
 
     return EXIT_SUCCESS;
