@@ -351,7 +351,7 @@ int main(int argc, char* argv[]) {
     }
     LOG(INFO) << "destSize " << destSize << " bytes";
 
-    std::ofstream ofs("out/time_stretch.pcm", std::ios::out | std::ios::binary);
+    std::ofstream ofs("out/time_stretch_effect.pcm", std::ios::out | std::ios::binary);
     ofs.write((const char*) destData, (long) destSize);
 
     if (bufferData)
