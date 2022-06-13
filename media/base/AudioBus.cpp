@@ -10,5 +10,6 @@ namespace mm {
     static void ValidateConfig(int channels, int frames) {
         CHECK_GT(frames, 0);
         CHECK_GT(channels, 0);
+        CHECK_LE(channels, static_cast<int>(kMaxChannels));
     }
 }

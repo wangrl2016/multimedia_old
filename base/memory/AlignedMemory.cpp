@@ -3,3 +3,7 @@
 //
 
 #include "base/memory/AlignedMemory.h"
+
+namespace mm {
+
+}

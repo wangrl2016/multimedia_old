@@ -30,7 +30,10 @@ namespace mm {
     constexpr int kMinSampleRate = 3000;
     constexpr int kMaxChannels = 32;
     constexpr int kMaxBytesPerSample = 4;
-
+    constexpr int kMaxBitsPerSample = kMaxBytesPerSample * 8;
+    constexpr int kMaxSamplesPerPacket = kMaxSampleRate;
+    constexpr int kMaxPacketSizeInBytes =
+            kMaxBytesPerSample * kMaxChannels * kMaxSamplesPerPacket;
 }
 
 #endif //MULTIMEDIA_LIMITS_H
