@@ -17,7 +17,7 @@ int main(int argc, char* argv[]) {
     assert(argc == 2);
     // Initialize Google’s logging library.
     google::InitGoogleLogging(argv[0]);
-    FLAGS_stderrthreshold = google::INFO;
+    FLAGS_stderrthreshold = google::GLOG_INFO;
 
     size_t bufferSize = std::filesystem::file_size(argv[1]);  // byte为单位
     LOG(INFO) << "bufferSize " << bufferSize << " bytes";

@@ -7,6 +7,7 @@
  */
 
 #include <cstdlib>
+#ifdef __APPLE__
 #include <AudioUnit/AudioUnit.h>
 #include <filesystem>
 #include <fstream>
@@ -33,8 +34,10 @@ OSStatus renderCallbackFunc(void* inRefCon,
     playIndex += inNumberFrames;
     return noErr;
 }
+#endif
 
 int main(int argc, char* argv[]) {
+#ifdef __APPLE__
     // Initialize Google’s logging library.
     google::InitGoogleLogging(argv[0]);
     FLAGS_stderrthreshold = google::INFO;
@@ -117,6 +120,6 @@ int main(int argc, char* argv[]) {
 
     LOG(INFO) << "exit";
     sleep(50000);
-
+#endif
     return EXIT_SUCCESS;
 }
