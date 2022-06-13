@@ -34,6 +34,8 @@ namespace mm {
         // has read.
         int64_t getDuration() const;
 
+        int getNumberOfFrames() const;
+
         AudioProperties getSrcAudioProperties() const { return mSrcAudioProperties; }
 
 

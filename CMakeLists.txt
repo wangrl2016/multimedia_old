@@ -25,9 +25,11 @@ foreach(EXAMPLE ${EXAMPLES})
     target_sources(
             ${EXE}
             PRIVATE
+            base/time/Time.cpp
             common/AudioProperties.cpp
             common/FFmpegAudioDecoder.cpp
             common/Utilities.cpp
+            media/ffmpeg/FFmpegCommon.cpp
     )
     target_link_libraries(${EXE}
             ${CONAN_LIBS})

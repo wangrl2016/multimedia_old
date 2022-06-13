@@ -2,8 +2,10 @@
 // Created by WangRuiLing on 2022/6/13.
 //
 
+#include <cmath>
 #include <glog/logging.h>
 #include "common/FFmpegAudioDecoder.h"
+#include "media/ffmpeg/FFmpegCommon.h"
 
 namespace mm {
     // AAC(M4A) decoding specific constants.
@@ -96,7 +98,11 @@ namespace mm {
             estimatedDurationUs += 1;
         }
 
-        return estimatedDurationUs;
+        return ConvertFromTimeBase(avTimeBase, estimatedDurationUs);
+    }
+
+    int FFmpegAudioDecoder::getNumberOfFrames() const {
+        return std::ceil(double(getDuration())  / 1000000.0 / srcSampleRate());
     }
 
     void FFmpegAudioDecoder::close() {
