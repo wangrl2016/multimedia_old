@@ -25,10 +25,12 @@ foreach(EXAMPLE ${EXAMPLES})
     target_sources(
             ${EXE}
             PRIVATE
+            base/memory/AlignedMemory.cpp
             base/time/Time.cpp
             common/AudioProperties.cpp
             common/FFmpegAudioDecoder.cpp
             common/Utilities.cpp
+            media/base/AudioBus.cpp
             media/ffmpeg/FFmpegCommon.cpp
     )
     target_link_libraries(${EXE}

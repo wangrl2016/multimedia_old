@@ -38,8 +38,6 @@ namespace mm {
 
         AudioProperties getSrcAudioProperties() const { return mSrcAudioProperties; }
 
-
-
         void close();
     private:
         AVFormatContext* mFormatCtx = nullptr;
