@@ -12,6 +12,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_parties)
 
 set(EXAMPLES
         audio/AudioUnitPlayer.cpp
+        audio/DemuxDecode.cpp
         audio/TimeStretchEffect.cpp
         audio/WavFormat.cpp
         )
@@ -24,6 +25,8 @@ foreach(EXAMPLE ${EXAMPLES})
     target_sources(
             ${EXE}
             PRIVATE
+            common/AudioProperties.cpp
+            common/FFmpegAudioDecoder.cpp
             common/Utilities.cpp
     )
     target_link_libraries(${EXE}

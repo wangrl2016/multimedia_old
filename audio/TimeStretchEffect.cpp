@@ -34,7 +34,7 @@ extern "C" {
  * @param tempo 变速大小，范围为[0.5, 100.0]
  * @param channelCount 原始数据声道数
  * @param sampleRate 原始数据采样率
- * @param sampleFormat 原始数据采样率
+ * @param sampleFormat 原始数据格式
  * @return 是否变速成功
  */
 bool timeStretch(const void* srcData,
