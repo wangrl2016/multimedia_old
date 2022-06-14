@@ -44,13 +44,36 @@ namespace mm {
         CHECK_LE(channels, static_cast<int>(kMaxChannels));
     }
 
-    void AudioBus::CheckOverflow(int startFrame, int frames, int totalFrames) {
-        CHECK_GE(startFrame, 0);
-        CHECK_GE(frames, 0);
-        CHECK_GT(totalFrames, 0);
-        int sum = startFrame + frames;
-        CHECK_LE(sum, totalFrames);
-        CHECK_GE(sum, 0);
+    void AudioBus::copyTo(AudioBus* dest) const {
+        copyPartialFramesTo(0, frames(), 0, dest);
+    }
+
+    void AudioBus::copyAndClipTo(AudioBus* dest) const {
+        CHECK_EQ(channels(), dest->channels());
+        CHECK_LE(frames(), dest->frames());
+        for (int i = 0; i < channels(); i++) {
+            float* destPtr = dest->channel(i);
+            const float* sourcePtr = channel(i);
+            for (int j = 0; j < frames(); j++)
+                destPtr[j] = sourcePtr[j] < -1.0f ? -1.0f : sourcePtr[j] > 1.0f ? 1.0f : sourcePtr[j];
+        }
+    }
+
+    void AudioBus::copyPartialFramesTo(int sourceStartFrame,
+                                       int frameCount,
+                                       int destStartFrame,
+                                       AudioBus* dest) const {
+        CHECK_EQ(channels(), dest->channels());
+        CHECK_LE(sourceStartFrame + frameCount, frames());
+        CHECK_LE(destStartFrame + frameCount, dest->frames());
+
+        // Since we don't know if the other AudioBus is wrapped or not (and we don't
+        // want to care), just copy using the public channel() accessors.
+        for (int i = 0; i < channels(); i++) {
+            memcpy(dest->channel(i) + destStartFrame,
+                   channel(i) + sourceStartFrame,
+                   sizeof(*channel(i) * frameCount));
+        }
     }
 
     void AudioBus::zero() {
@@ -95,6 +118,17 @@ namespace mm {
         }
     }
 
+    void AudioBus::swapChannels(int a, int b) {
+        DCHECK(a < channels() && a >= 0);
+        DCHECK(b < channels() && b >= 0);
+        DCHECK_NE(a, b);
+        std::swap(mChannelData[a], mChannelData[b]);
+    }
+
+    AudioBus::~AudioBus() {
+
+    }
+
     AudioBus::AudioBus(int channels, int frames)
             : mFrames(frames) {
         ValidateConfig(channels, mFrames);
@@ -108,8 +142,33 @@ namespace mm {
         buildChannelData(channels, alignedFrames, mData.get());
     }
 
-    AudioBus::~AudioBus() {
+    AudioBus::AudioBus(int channels, int frames, float* data)
+            : mFrames(frames) {
+        // Since |data| may have come from an external source, ensure it's valid.
+        CHECK(data);
+        ValidateConfig(channels, frames);
 
+        int alignedFrames = 0;
+        CalculateMemorySizeInternal(channels, frames, &alignedFrames);
+
+        buildChannelData(channels, alignedFrames, data);
+    }
+
+    AudioBus::AudioBus(int frames, const std::vector<float*>& channelData)
+            : mChannelData(channelData), mFrames(frames) {
+        ValidateConfig(int(mChannelData.size()), mFrames);
+
+        // Sanity check wrapped vector for alignment and channel count.
+        for (size_t i = 0; i < mChannelData.size(); i++) {
+            DCHECK(IsAligned(mChannelData[i]));
+        }
+    }
+
+    AudioBus::AudioBus(int channels)
+            : mChannelData(channels), mFrames(0) {
+        CHECK_GT(channels, 0);
+        for (size_t i = 0; i < mChannelData.size(); i++)
+            mChannelData[i] = nullptr;
     }
 
     void AudioBus::buildChannelData(int channels, int alignedFrame, float* data) {
@@ -120,5 +179,14 @@ namespace mm {
         mChannelData.reserve(channels);
         for (int i = 0; i < channels; ++i)
             mChannelData.push_back(data + i * alignedFrame);
+    }
+
+    void AudioBus::CheckOverflow(int startFrame, int frames, int totalFrames) {
+        CHECK_GE(startFrame, 0);
+        CHECK_GE(frames, 0);
+        CHECK_GT(totalFrames, 0);
+        int sum = startFrame + frames;
+        CHECK_LE(sum, totalFrames);
+        CHECK_GE(sum, 0);
     }
 }

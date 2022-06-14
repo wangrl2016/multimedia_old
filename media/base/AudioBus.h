@@ -60,6 +60,18 @@ namespace mm {
         // AudioBus object must have the same frames() and channels().
         void copyTo(AudioBus* dest) const;
 
+        // Similar to above, but clips values to [-1, 1] during the copy process.
+        void copyAndClipTo(AudioBus* dest) const;
+
+        // Helper method to copy frames from one AudioBus to another. Both AudioBus
+        // objects must have the same number of channels(). |sourceStartFrame| is
+        // the starting offset. |destStartFrame| is the starting offset in |dest|.
+        // |frameCount| is the number of frames to copy.
+        void copyPartialFramesTo(int sourceStartFrame,
+                                 int frameCount,
+                                 int destStartFrame,
+                                 AudioBus* dest) const;
+
         // Returns a raw pointer to the requested channel.  Pointer is guaranteed to
         // have a 16-byte alignment.  Warning: Do not rely on having sane (i.e. not
         // inf, nan, or between [-1.0, 1.0]) values in the channel data.
