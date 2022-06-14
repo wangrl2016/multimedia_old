@@ -18,10 +18,42 @@ namespace mm {
         };
 
         static std::unique_ptr<AudioBus> Create(int channels, int frames);
-        
-        void setChannelData(int channel, float* data);
 
-        void setFrames(int frames);
+        // Creates a new AudioBus by wrapping an existing block of memory. Block must
+        // be at least CalculateMemorySize() bytes in size. |data| must outlive the
+        // returned AudioBus. |data| must be aligned by kChannelAlignment.
+        static std::unique_ptr<AudioBus> WrapMemory(int channels,
+                                                    int frames,
+                                                    void* data);
+
+        // Based on the given number of channels and frames, calculates the minimum
+        // required size in bytes of a contiguous block of memory to be passed to
+        // AudioBus for storage of the audio data.
+        static int CalculateMemorySize(int channels, int frames);
+
+        // Overwrites the sample values stored in this AudioBus instance with values
+        // from a given interleaved |sourceBuffer| with expected layout
+        // [ch0, ch1, ..., chN, ch0, ch1, ...] and sample values in the format
+        // corresponding to the given SourceSampleTypeTraits.
+        // The sample values are converted to float values by means of the method
+        // convertToFloat32() provided by the SourceSampleTypeTraits. For a list of
+        // ready-to-use SampleTypeTraits, see file AudioSampleTypes.h.
+        // If |numFramesToWrite| is less than frames(), the remaining frames are
+        // zeroed out. If |numFramesToWrite| is more than frames(), write frames().
+        template<class SourceSampleTypeTraits>
+        void fromInterleaved(
+                const typename SourceSampleTypeTraits::ValueType* sourceBuffer,
+                int numFramesToWrite);
+
+        // Reads the sample values stored in this AudioBus instance and places them
+        // into the given |destBuffer| in interleaved format using the sample format
+        // specified by TargetSampleTypeTraits. For a list of ready-to-use
+        // SampleTypeTraits, see file AudioSampleTypes.h. If |numFramesToRead| is
+        // larger than frames(), write zero in last.
+        template<class TargetSampleTypeTraits>
+        void toInterleaved(
+                int numFramesToRead,
+                typename TargetSampleTypeTraits::ValueType* destBuffer) const;
 
         // Helper method for copying channel data from one AudioBus to another.  Both
         // AudioBus object must have the same frames() and channels().
@@ -34,6 +66,7 @@ namespace mm {
 
         const float* channel(int channel) const { return mChannelData[channel]; }
 
+        // Returns the number of channels.
         int channels() const { return static_cast<int>(mChannelData.size()); }
 
         // Returns the number of frames.
@@ -57,6 +90,10 @@ namespace mm {
         // the channels are valid.
         void swapChannels(int a, int b);
 
+        AudioBus(const AudioBus&) = delete;
+
+        AudioBus& operator=(const AudioBus&) = delete;
+
         virtual ~AudioBus();
 
     protected:
@@ -69,9 +106,14 @@ namespace mm {
         explicit AudioBus(int channels);
 
     private:
+        // Helper method for building |mChannelData| from a block of memory. |data|
+        // must be at least CalculateMemorySize(...) bytes in size.
+        void buildChannelData(int channels, int alignedFrame, float* data);
+
         static void CheckOverflow(int startFrame, int frames, int totalFrames);
 
     private:
+        // Contiguous block of channel memory.
         std::unique_ptr<float, AlignedFreeDeleter> mData;
 
         // One float pointer per channel pointing to a contiguous block of memory for

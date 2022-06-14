@@ -12,4 +12,13 @@ namespace mm {
         CHECK_GT(channels, 0);
         CHECK_LE(channels, static_cast<int>(kMaxChannels));
     }
+
+    void AudioBus::CheckOverflow(int startFrame, int frames, int totalFrames) {
+        CHECK_GE(startFrame, 0);
+        CHECK_GE(frames, 0);
+        CHECK_GT(totalFrames, 0);
+        int sum = startFrame + frames;
+        CHECK_LE(sum, totalFrames);
+        CHECK_GE(sum, 0);
+    }
 }
