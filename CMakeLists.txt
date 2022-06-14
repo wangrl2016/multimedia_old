@@ -35,7 +35,7 @@ foreach(EXAMPLE ${EXAMPLES})
     add_executable(${EXE}
             ${EXAMPLE})
     target_link_libraries(${EXE}
-            ${multimedia}
+            multimedia
             ${CONAN_LIBS})
 endforeach()
 
@@ -47,7 +47,7 @@ add_executable(MMUnitTest
 
 target_link_libraries(MMUnitTest
         PRIVATE
-        ${multimedia}
+        multimedia
         ${CONAN_LIBS})
 
 include(GoogleTest)

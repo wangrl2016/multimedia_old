@@ -2,12 +2,11 @@
 // Created by WangRuiLing on 2022/6/14.
 //
 
+#include <memory>
 #include <gtest/gtest.h>
-
 extern "C" {
 #include <libavutil/channel_layout.h>
 }
-
 #include "media/base/AudioBus.h"
 
 namespace mm {
@@ -42,5 +41,7 @@ namespace mm {
     // Verify basic Create(...) method works as advertised.
     TEST_F(AudioBusTest, Create) {
         std::unique_ptr<AudioBus> bus = AudioBus::Create(kChannels, kFrameCount);
+        verifyChannelAndFrameCount(bus.get());
+
     }
 }

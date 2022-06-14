@@ -12,6 +12,10 @@ namespace mm {
                 (AudioBus::kChannelAlignment - 1) == 0U);
     }
 
+    std::unique_ptr<AudioBus> AudioBus::Create(int channels, int frames) {
+        return std::unique_ptr<AudioBus>(new AudioBus(channels, frames));
+    }
+
     // In order to guarantee that the memory block for each channel starts at an
     // aligned address when splitting a contiguous block of memory into one block
     // per channel, we may have to make these blocks larger than otherwise needed.
@@ -58,5 +62,21 @@ namespace mm {
 
         mData.reset(static_cast<float*>(AlignedAlloc(
                 size, AudioBus::kChannelAlignment)));
+
+        buildChannelData(channels, alignedFrames, mData.get());
+    }
+
+    AudioBus::~AudioBus() {
+
+    }
+
+    void AudioBus::buildChannelData(int channels, int alignedFrame, float* data) {
+        DCHECK(IsAligned(data));
+        DCHECK_EQ(mChannelData.size(), 0U);
+        DCHECK_EQ(mChannelData.size(), 0U);
+        // Initialize |mChannelData| with pointers into |data|.
+        mChannelData.reserve(channels);
+        for (int i = 0; i < channels; ++i)
+            mChannelData.push_back(data + i * alignedFrame);
     }
 }

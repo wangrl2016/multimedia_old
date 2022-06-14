@@ -17,6 +17,7 @@ namespace mm {
             kChannelAlignment = 16
         };
 
+        // Creates a new AudioBus and allocates |channels| of length |frames|.
         static std::unique_ptr<AudioBus> Create(int channels, int frames);
 
         // Creates a new AudioBus by wrapping an existing block of memory. Block must
