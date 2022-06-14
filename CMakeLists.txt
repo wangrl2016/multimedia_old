@@ -10,6 +10,18 @@ conan_basic_setup()
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_parties)
 
+add_library(multimedia STATIC)
+target_sources(multimedia
+        PRIVATE
+        base/memory/AlignedMemory.cpp
+        base/time/Time.cpp
+        common/AudioProperties.cpp
+        common/FFmpegAudioDecoder.cpp
+        common/Utilities.cpp
+        media/base/AudioBus.cpp
+        media/ffmpeg/FFmpegCommon.cpp
+        )
+
 set(EXAMPLES
         audio/AudioUnitPlayer.cpp
         audio/DemuxDecode.cpp
@@ -22,18 +34,8 @@ foreach(EXAMPLE ${EXAMPLES})
     string(REGEX REPLACE ".cpp" "" EXE ${tmp1})
     add_executable(${EXE}
             ${EXAMPLE})
-    target_sources(
-            ${EXE}
-            PRIVATE
-            base/memory/AlignedMemory.cpp
-            base/time/Time.cpp
-            common/AudioProperties.cpp
-            common/FFmpegAudioDecoder.cpp
-            common/Utilities.cpp
-            media/base/AudioBus.cpp
-            media/ffmpeg/FFmpegCommon.cpp
-    )
     target_link_libraries(${EXE}
+            ${multimedia}
             ${CONAN_LIBS})
 endforeach()
 
@@ -45,6 +47,7 @@ add_executable(MMUnitTest
 
 target_link_libraries(MMUnitTest
         PRIVATE
+        ${multimedia}
         ${CONAN_LIBS})
 
 include(GoogleTest)

@@ -78,6 +78,9 @@ namespace mm {
         mSrcAudioProperties.sampleRate = mCodecCtx->sample_rate;
         mSrcAudioProperties.sampleFormat = mCodecCtx->sample_fmt;
 
+        mDestAudioProperties.channelCount = mSrcAudioProperties.channelCount;
+        mDestAudioProperties.sampleRate = mCodecCtx->sample_rate;
+        mDestAudioProperties.sampleFormat = mCodecCtx->sample_fmt;
         return true;
     }
 
