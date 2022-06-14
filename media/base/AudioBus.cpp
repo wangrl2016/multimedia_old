@@ -53,6 +53,48 @@ namespace mm {
         CHECK_GE(sum, 0);
     }
 
+    void AudioBus::zero() {
+        zeroFrames(mFrames);
+    }
+
+    void AudioBus::zeroFrames(int frames) {
+        zeroFramesPartial(0, frames);
+    }
+
+    void AudioBus::zeroFramesPartial(int startFrame, int frames) {
+        CheckOverflow(startFrame, frames, mFrames);
+        if (frames <= 0)
+            return;
+
+        for (size_t i = 0; i < mChannelData.size(); i++) {
+            memset(mChannelData[i] + startFrame, 0,
+                   frames * sizeof(*mChannelData[i]));
+        }
+    }
+
+    bool AudioBus::areFramesZero() const {
+        for (size_t i = 0; i < mChannelData.size(); i++) {
+            for (int j = 0; j < mFrames; j++) {
+                if (mChannelData[i][j])
+                    return false;
+            }
+        }
+        return true;
+    }
+
+    void AudioBus::scale(float volume) {
+        if (volume > 0 && volume != 1) {
+            for (int i = 0; i < channels(); i++) {
+                // 可以使用硬件加速
+                for (int j = 0; j < mFrames; j++) {
+                    mChannelData[i][j] = mChannelData[i][j] * volume;
+                }
+            }
+        } else if (volume == 0) {
+            zero();
+        }
+    }
+
     AudioBus::AudioBus(int channels, int frames)
             : mFrames(frames) {
         ValidateConfig(channels, mFrames);

@@ -78,7 +78,7 @@ namespace mm {
 
         void zeroFrames(int frames);
 
-        void zeroFramesPartial(int start_frame, int frames);
+        void zeroFramesPartial(int startFrame, int frames);
 
         // Checks if all frames are zero.
         bool areFramesZero() const;
