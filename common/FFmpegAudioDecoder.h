@@ -5,23 +5,32 @@
 #ifndef MULTIMEDIA_FFMPEG_AUDIO_DECODER_H
 #define MULTIMEDIA_FFMPEG_AUDIO_DECODER_H
 
+#include <limits>
 #include <string>
+#include <vector>
+
 extern "C" {
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
 #include <libswresample/swresample.h>
 }
+
 #include "common/AudioProperties.h"
+#include "media/base/AudioBus.h"
 
 namespace mm {
     class FFmpegAudioDecoder {
     public:
+        FFmpegAudioDecoder();
+
+        ~FFmpegAudioDecoder();
+
         bool open(const std::string& filePath);
 
         // These methods can be called once open() has been called.
-        int srcChannelCount() const { return mSrcChannelCount; }
+        int srcChannelCount() const { return mSrcAudioProperties.channelCount; }
 
-        int srcSampleRate() const { return mSrcSampleRate; }
+        int srcSampleRate() const { return mSrcAudioProperties.sampleRate; }
 
         // Return true if (an estimated) duration of the audio data is
         // known. Must be called after open().
@@ -38,7 +47,20 @@ namespace mm {
 
         AudioProperties getSrcAudioProperties() const { return mSrcAudioProperties; }
 
+        bool setDestAudioProperties(AudioProperties& audioProperties);
+
+        // After a call to open(), attempts to decode the data,
+        // updating |decodedAudioPackets| with each decoded packet in order.
+        // The caller must convert these packets into one complete set of
+        // decoded audio data. The audio data will be decoded as
+        // floating-point linear PCM with a nominal range of -1.0 -> +1.0.
+        // Returns the number of sample-frames actually read which will
+        // always be the total size of all the frames in
+        // |decodedAudioPackets|.
+        int read(std::vector<std::unique_ptr<AudioBus>>* decodedAudioPackets);
+
         void close();
+
     private:
         AVFormatContext* mFormatCtx = nullptr;
         AVCodecContext* mCodecCtx = nullptr;
@@ -47,10 +69,8 @@ namespace mm {
 
         int mStreamIndex = -1;
 
-        int mSrcChannelCount = -1;
-        int mSrcSampleRate = -1;
-
-        AudioProperties mSrcAudioProperties;
+        AudioProperties mSrcAudioProperties{};
+        AudioProperties mDestAudioProperties{};
     };
 }
 

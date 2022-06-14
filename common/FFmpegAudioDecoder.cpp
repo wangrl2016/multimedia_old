@@ -2,15 +2,25 @@
 // Created by WangRuiLing on 2022/6/13.
 //
 
-#include <cmath>
 #include <glog/logging.h>
 #include "common/FFmpegAudioDecoder.h"
+#include "media/base/Constants.h"
 #include "media/ffmpeg/FFmpegCommon.h"
 
 namespace mm {
     // AAC(M4A) decoding specific constants.
     static const int kAACPrimingFrameCount = 2112;
     static const int kAACRemainderFrameCount = 519;
+
+    FFmpegAudioDecoder::FFmpegAudioDecoder() {
+        mDestAudioProperties.channelCount = kDefaultChannelCount;
+        mDestAudioProperties.sampleRate = kDefaultSampleRate;
+        mDestAudioProperties.sampleFormat = kDefaultSampleFormat;
+    }
+
+    FFmpegAudioDecoder::~FFmpegAudioDecoder() {
+        this->close();
+    }
 
     bool FFmpegAudioDecoder::open(const std::string &filePath) {
         // Open input file, and allocate format context.
@@ -103,6 +113,40 @@ namespace mm {
 
     int FFmpegAudioDecoder::getNumberOfFrames() const {
         return std::ceil(double(getDuration())  / 1000000.0 / srcSampleRate());
+    }
+
+    bool FFmpegAudioDecoder::setDestAudioProperties(AudioProperties& audioProperties) {
+        mDestAudioProperties = audioProperties;
+
+        // 判断是否需要进行重采样
+        if (mDestAudioProperties != mSrcAudioProperties) {
+            // Initialize the resample to be able to convert audio sample formats.
+            mSwrCtx = swr_alloc_set_opts(nullptr,
+                                         av_get_default_channel_layout(mDestAudioProperties.channelCount),
+                                         mDestAudioProperties.sampleFormat,
+                                         mDestAudioProperties.sampleRate,
+                                         av_get_default_channel_layout(mSrcAudioProperties.channelCount),
+                                         mSrcAudioProperties.sampleFormat,
+                                         mSrcAudioProperties.sampleRate,
+                                         0,
+                                         nullptr);
+            if (!mSwrCtx) {
+                LOG(ERROR) << "Could not allocate resample context";
+                return false;
+            }
+            if (swr_init(mSwrCtx) < 0) {
+                LOG(ERROR) << "Could not init SwrContext";
+                swr_free(&mSwrCtx);
+                mSwrCtx = nullptr;
+                return false;
+            }
+        }
+        return true;
+    }
+
+    int FFmpegAudioDecoder::read(std::vector<std::unique_ptr<AudioBus>>* decodedAudioPackets) {
+
+        return 0;
     }
 
     void FFmpegAudioDecoder::close() {
