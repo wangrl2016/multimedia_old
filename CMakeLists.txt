@@ -37,4 +37,15 @@ foreach(EXAMPLE ${EXAMPLES})
             ${CONAN_LIBS})
 endforeach()
 
+# 单元测试
+enable_testing()
 
+add_executable(MMUnitTest
+        tests/AudioBusUnitTest.cpp)
+
+target_link_libraries(MMUnitTest
+        PRIVATE
+        ${CONAN_LIBS})
+
+include(GoogleTest)
+gtest_discover_tests(MMUnitTest)
