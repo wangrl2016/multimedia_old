@@ -9,16 +9,30 @@
 #include "base/memory/AlignedMemory.h"
 
 namespace mm {
+    // Represents a sequence of audio frames containing frames() audio samples for
+    // each of channels() channels. The data is stored as a set of contiguous
+    // float arrays with one array per channel. The memory for the arrays is either
+    // allocated and owned by the AudioBus or it is provided to one of the factory
+    // methods. AudioBus guarantees that it allocates memory such that float array
+    // for each channel is aligned by AudioBus::kChannelAlignment bytes, and it
+    // requires the same for memory passed its Wrap...() factory methods.
     class AudioBus {
     public:
         // Guaranteed alignment of each channel's data; use 16-byte alignment for easy
         // SSE optimizations.
         enum {
-            kChannelAlignment = 16
+            kChannelAlignment = 16  // 128 bits
         };
 
         // Creates a new AudioBus and allocates |channels| of length |frames|.
         static std::unique_ptr<AudioBus> Create(int channels, int frames);
+
+        // Creates a new AudioBus from an existing channel vector. Does not transfer
+        // ownership of |channelData| to AudioBus; i.e., |channelData| must outlive
+        // the returned AudioBus. Each channel must be aligned by kChannelAlignment.
+        static std::unique_ptr<AudioBus> WrapVector(
+                int frames,
+                const std::vector<float*>& channelData);
 
         // Creates a new AudioBus by wrapping an existing block of memory. Block must
         // be at least CalculateMemorySize() bytes in size. |data| must outlive the
@@ -26,6 +40,10 @@ namespace mm {
         static std::unique_ptr<AudioBus> WrapMemory(int channels,
                                                     int frames,
                                                     void* data);
+
+        static std::unique_ptr<const AudioBus> WrapReadOnlyMemory(int channels,
+                                                                  int frames,
+                                                                  const void* data);
 
         // Based on the given number of channels and frames, calculates the minimum
         // required size in bytes of a contiguous block of memory to be passed to
@@ -46,6 +64,15 @@ namespace mm {
                 const typename SourceSampleTypeTraits::ValueType* sourceBuffer,
                 int numFramesToWrite);
 
+        // Similar to FromInterleaved...(), but overwrites the frames starting at a
+        // given offset |writeOffsetInFrames| and does not zero out frames that are
+        // not overwritten.
+        template<class SourceSampleTypeTraits>
+        void fromInterleavedPartial(
+                const typename SourceSampleTypeTraits::ValueType* sourceBuffer,
+                int writeOffsetInFrames,
+                int numFramesToWrite);
+
         // Reads the sample values stored in this AudioBus instance and places them
         // into the given |destBuffer| in interleaved format using the sample format
         // specified by TargetSampleTypeTraits. For a list of ready-to-use
@@ -55,6 +82,13 @@ namespace mm {
         void toInterleaved(
                 int numFramesToRead,
                 typename TargetSampleTypeTraits::ValueType* destBuffer) const;
+
+        // Similar to toInterleaved(), but reads the frames starting at a given
+        // offset |readOffsetInFrames|.
+        template<class TargetSampleTypeTraits>
+        void toInterleavedPartial(int readOffsetInFrames,
+                                  int numFramesToRead,
+                                  typename TargetSampleTypeTraits::ValueType destBuffer) const;
 
         // Helper method for copying channel data from one AudioBus to another.  Both
         // AudioBus object must have the same frames() and channels().
@@ -125,6 +159,20 @@ namespace mm {
 
         static void CheckOverflow(int startFrame, int frames, int totalFrames);
 
+        template<class SourceSampleTypeTraits>
+        static void CopyConvertFromInterleavedSourceToAudioBus(
+                const typename SourceSampleTypeTraits::ValueType* sourceBuffer,
+                int writeOffsetInFrames,
+                int numFramesToWrite,
+                AudioBus* dest);
+
+        template<class TargetSampleTypeTraits>
+        static void CopyConvertFromAudioBusToInterleavedTarget(
+                const AudioBus* source,
+                int readOffsetInFrames,
+                int numFramesToRead,
+                typename TargetSampleTypeTraits::ValueType* destBuffer);
+
     private:
         // Contiguous block of channel memory.
         std::unique_ptr<float, AlignedFreeDeleter> mData;
@@ -134,8 +182,57 @@ namespace mm {
         // point to the memory in |mData|. Otherwise, it may point to memory provided
         // by the client.
         std::vector<float*> mChannelData;
-        int mFrames;
+
+        int mFrames; // 数量
     };
+
+    // template implementation
+    template<class SourceSampleTypeTraits>
+    void AudioBus::fromInterleaved(
+            const typename SourceSampleTypeTraits::ValueType* sourceBuffer,
+            int numFramesToWrite) {
+
+    }
+
+    template<class SourceSampleTypeTraits>
+    void AudioBus::fromInterleavedPartial(
+            const typename SourceSampleTypeTraits::ValueType* sourceBuffer,
+            int writeOffsetInFrames, int numFramesToWrite) {
+
+    }
+
+    template<class TargetSampleTypeTraits>
+    void AudioBus::toInterleaved(
+            int numFramesToRead,
+            typename TargetSampleTypeTraits::ValueType* destBuffer) const {
+        toInterleavedPartial<TargetSampleTypeTraits>(0,
+                                                     numFramesToRead,
+                                                     destBuffer);
+    }
+
+    template<class TargetSampleTypeTraits>
+    void AudioBus::toInterleavedPartial(
+            int readOffsetInFrames,
+            int numFramesToRead,
+            typename TargetSampleTypeTraits::ValueType destBuffer) const {
+        CheckOverflow(readOffsetInFrames, numFramesToRead, mFrames);
+
+    }
+
+    template<class SourceSampleTypeTraits>
+    void AudioBus::CopyConvertFromInterleavedSourceToAudioBus(
+            const typename SourceSampleTypeTraits::ValueType* sourceBuffer,
+            int writeOffsetInFrames, int numFramesToWrite,
+            AudioBus* dest) {
+
+    }
+
+    template<class TargetSampleTypeTraits>
+    void AudioBus::CopyConvertFromAudioBusToInterleavedTarget(
+            const AudioBus* source,
+            int readOffsetInFrames,
+            int numFramesToRead,
+            typename TargetSampleTypeTraits::ValueType* destBuffer) {}
 }
 
 #endif //MULTIMEDIA_AUDIO_BUS_H

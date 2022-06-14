@@ -9,11 +9,7 @@
 namespace mm {
     static bool IsAligned(void* ptr) {
         return (reinterpret_cast<uintptr_t>(ptr) &
-                (AudioBus::kChannelAlignment - 1) == 0U);
-    }
-
-    std::unique_ptr<AudioBus> AudioBus::Create(int channels, int frames) {
-        return std::unique_ptr<AudioBus>(new AudioBus(channels, frames));
+                (AudioBus::kChannelAlignment - 1)) == 0U;
     }
 
     // In order to guarantee that the memory block for each channel starts at an
@@ -29,13 +25,45 @@ namespace mm {
         // by making the number of frames an integer multiple of
         // AudioBus::kChannelAlignment / sizeof(float).
         int alignedFrames =
-                ((frames * sizeof(float) + AudioBus::kChannelAlignment - 1) &
-                 ~(AudioBus::kChannelAlignment - 1)) / sizeof(float);
+                int(((frames * sizeof(float) + AudioBus::kChannelAlignment - 1) &
+                     ~(AudioBus::kChannelAlignment - 1))) / sizeof(float);
 
         if (outAlignedFrames)
             *outAlignedFrames = alignedFrames;
 
         return sizeof(float) * channels * alignedFrames;
+    }
+
+    std::unique_ptr<AudioBus> AudioBus::Create(int channels, int frames) {
+        return std::unique_ptr<AudioBus>(new AudioBus(channels, frames));
+    }
+
+    std::unique_ptr<AudioBus> AudioBus::WrapVector(
+            int frames,
+            const std::vector<float*>& channelData) {
+        return std::unique_ptr<AudioBus>(new AudioBus(frames, channelData));
+    }
+
+    std::unique_ptr<AudioBus> AudioBus::WrapMemory(int channels,
+                                                   int frames,
+                                                   void* data) {
+        // |data| must be aligned by AudioBus::kChannelAlignment.
+        CHECK(IsAligned(data));
+        return std::unique_ptr<AudioBus>(new AudioBus(
+                channels, frames, static_cast<float*>(data)));
+    }
+
+    std::unique_ptr<const AudioBus> AudioBus::WrapReadOnlyMemory(
+            int channels, int frames, const void* data) {
+        // Note: const_cast is generally dangerous but is used in this case since
+        // AudioBus accommodates both read-only and read/write use cases. A const
+        // AudioBus object is returned to ensure no one accidentally writes to the
+        // read-only data.
+        return WrapMemory(channels, frames, const_cast<void*>(data));
+    }
+
+    int AudioBus::CalculateMemorySize(int channels, int frames) {
+        return CalculateMemorySizeInternal(channels, frames, nullptr);
     }
 
     static void ValidateConfig(int channels, int frames) {

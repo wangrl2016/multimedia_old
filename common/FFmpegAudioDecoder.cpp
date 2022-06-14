@@ -3,6 +3,7 @@
 //
 
 #include <glog/logging.h>
+#include <cmath>
 #include "common/FFmpegAudioDecoder.h"
 #include "media/base/Constants.h"
 #include "media/ffmpeg/FFmpegCommon.h"
@@ -125,10 +126,12 @@ namespace mm {
         if (mDestAudioProperties != mSrcAudioProperties) {
             // Initialize the resample to be able to convert audio sample formats.
             mSwrCtx = swr_alloc_set_opts(nullptr,
-                                         av_get_default_channel_layout(mDestAudioProperties.channelCount),
+                                         av_get_default_channel_layout(
+                                                 mDestAudioProperties.channelCount),
                                          mDestAudioProperties.sampleFormat,
                                          mDestAudioProperties.sampleRate,
-                                         av_get_default_channel_layout(mSrcAudioProperties.channelCount),
+                                         av_get_default_channel_layout(
+                                                 mSrcAudioProperties.channelCount),
                                          mSrcAudioProperties.sampleFormat,
                                          mSrcAudioProperties.sampleRate,
                                          0,
