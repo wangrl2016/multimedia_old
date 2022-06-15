@@ -191,16 +191,21 @@ namespace mm {
     void AudioBus::fromInterleaved(
             const typename SourceSampleTypeTraits::ValueType* sourceBuffer,
             int numFramesToWrite) {
-
+        // Zero any remaining frames.
+        zeroFramesPartial(numFramesToWrite,
+                          mFrames - numFramesToWrite);
     }
 
     template<class SourceSampleTypeTraits>
     void AudioBus::fromInterleavedPartial(
             const typename SourceSampleTypeTraits::ValueType* sourceBuffer,
             int writeOffsetInFrames, int numFramesToWrite) {
-
+        CheckOverflow(writeOffsetInFrames, numFramesToWrite, mFrames);
+        CopyConvertFromInterleavedSourceToAudioBus<SourceSampleTypeTraits>(
+                sourceBuffer, writeOffsetInFrames, numFramesToWrite, this);
     }
 
+    // Delegates to toInterleavedPartial().
     template<class TargetSampleTypeTraits>
     void AudioBus::toInterleaved(
             int numFramesToRead,
@@ -214,9 +219,10 @@ namespace mm {
     void AudioBus::toInterleavedPartial(
             int readOffsetInFrames,
             int numFramesToRead,
-            typename TargetSampleTypeTraits::ValueType destBuffer) const {
+            typename TargetSampleTypeTraits::ValueType dest) const {
         CheckOverflow(readOffsetInFrames, numFramesToRead, mFrames);
-
+        CopyConvertFromAudioBusToInterleavedTarget<TargetSampleTypeTraits>(
+                this, readOffsetInFrames, numFramesToRead, dest);
     }
 
     template<class SourceSampleTypeTraits>
@@ -224,7 +230,18 @@ namespace mm {
             const typename SourceSampleTypeTraits::ValueType* sourceBuffer,
             int writeOffsetInFrames, int numFramesToWrite,
             AudioBus* dest) {
-
+        const int channels = dest->channels();
+        for (int ch = 0; ch < channels; ch++) {
+            float* channelData = dest->channel(ch);
+            for (int targetFrameIndex = writeOffsetInFrames,
+                         readPosInSource = ch;
+                 targetFrameIndex < writeOffsetInFrames + numFramesToWrite;
+                 ++targetFrameIndex, readPosInSource += channels) {
+                auto sourceValue = sourceBuffer[readPosInSource];
+                channelData[targetFrameIndex] =
+                        SourceSampleTypeTraits::ToFloat(sourceValue);
+            }
+        }
     }
 
     template<class TargetSampleTypeTraits>
@@ -232,7 +249,19 @@ namespace mm {
             const AudioBus* source,
             int readOffsetInFrames,
             int numFramesToRead,
-            typename TargetSampleTypeTraits::ValueType* destBuffer) {}
+            typename TargetSampleTypeTraits::ValueType* destBuffer) {
+        const int channels = source->channels();
+        for (int ch = 0; ch < channels; ch++) {
+            const float* channelData = source->channel(ch);
+            for (int sourceFrameIndex = readOffsetInFrames, writePosInDest = ch;
+                 sourceFrameIndex < readOffsetInFrames + numFramesToRead;
+                 sourceFrameIndex++, writePosInDest += channels) {
+                float sourceSampleValue = channelData[sourceFrameIndex];
+                destBuffer[writePosInDest] =
+                        TargetSampleTypeTraits::FromFloat(sourceSampleValue);
+            }
+        }
+    }
 }
 
 #endif //MULTIMEDIA_AUDIO_BUS_H
