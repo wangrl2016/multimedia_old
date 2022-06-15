@@ -191,6 +191,9 @@ namespace mm {
     void AudioBus::fromInterleaved(
             const typename SourceSampleTypeTraits::ValueType* sourceBuffer,
             int numFramesToWrite) {
+        fromInterleavedPartial<SourceSampleTypeTraits>(sourceBuffer, 0,
+                                                       numFramesToWrite);
+
         // Zero any remaining frames.
         zeroFramesPartial(numFramesToWrite,
                           mFrames - numFramesToWrite);

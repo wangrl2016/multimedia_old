@@ -228,9 +228,8 @@ namespace mm {
     static const uint8_t kTestVectorUint8[kTestVectorSize] = {
             0, -INT8_MIN, UINT8_MAX,
             0, INT8_MAX / 2 + 128, INT8_MIN / 2 + 128,
-            -INT8_MIN, UINT8_MAX, -INT8_MIN,
-            -INT8_MIN
-    };
+            - INT8_MIN, UINT8_MAX, - INT8_MIN,
+            - INT8_MIN};
 
     static const int16_t kTestVectorInt16[kTestVectorSize] = {
             INT16_MIN, 0, INT16_MAX, INT16_MIN, INT16_MAX / 2,
@@ -281,5 +280,11 @@ namespace mm {
         }
 
         bus->zero();
+        bus->fromInterleaved<UnsignedInt8SampleTypeTraits>(kTestVectorUint8,
+                                                           kTestVectorFrameCount);
+        // Biased uint8_t calculations have poor precision, so the epsilon here is
+        // slightly more permissive than int16_t and int32_t calculations.
+        verifyAreEqualWithEpsilon(bus.get(), expected.get(),
+                                  1.0f / (std::numeric_limits<uint8_t>::max() - 1));
     }
 }
