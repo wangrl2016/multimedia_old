@@ -88,7 +88,7 @@ namespace mm {
         }
 
         // Verify copying to and from |bus1| and |bus2|.
-        void CopyTest(AudioBus* bus1, AudioBus* bus2) {
+        void copyTest(AudioBus* bus1, AudioBus* bus2) {
             // Fill |bus1| with dummy data.
             for (int i = 0; i < bus1->channels(); i++)
                 std::fill(bus1->channel(i), bus1->channel(i) + bus1->frames(), i);
@@ -157,9 +157,40 @@ namespace mm {
         // test for parity between the Create() functions.
         std::unique_ptr<AudioBus> bus1 = AudioBus::Create(kChannels, kFrameCount);
         std::unique_ptr<AudioBus> bus2 = AudioBus::Create(kChannels, kFrameCount);
+        copyTest(bus1.get(), bus2.get());
 
-        // CopyTest(bus1.get(), bus2.get());
+        mData.reserve(kChannels);
+        for (int i = 0; i < kChannels; i++) {
+            mData.push_back(static_cast<float*>(AlignedAlloc(
+                    sizeof(*mData[i]) * kFrameCount, AudioBus::kChannelAlignment)));
+        }
 
+        bus2 = AudioBus::WrapVector(kFrameCount, mData);
+        copyTest(bus1.get(), bus2.get());
 
+        // Try a copy to an AudioBus wrapping a memory block.
+        std::unique_ptr<float, AlignedFreeDeleter> data(
+                static_cast<float*>(AlignedAlloc(
+                        AudioBus::CalculateMemorySize(kChannels, kFrameCount),
+                        AudioBus::kChannelAlignment)));
+
+        bus2 = AudioBus::WrapMemory(kChannels, kFrameCount, data.get());
+        copyTest(bus1.get(), bus2.get());
+    }
+
+    // Verify zero() and zeroFrames(...) utility methods work as advertised.
+    TEST_F(AudioBusTest, zero) {
+        std::unique_ptr<AudioBus> bus = AudioBus::Create(kChannels, kFrameCount);
+
+        // Fill the bus with dummy data.
+        for (int i = 0; i < bus->channels(); i++)
+            std::fill(bus->channel(i), bus->channel(i) + bus->frames(), i + 1);
+        EXPECT_FALSE(bus->areFramesZero());
+
+        // Zero first half the frames of each channel.
+        bus->zeroFrames(kFrameCount / 2);
+        for (int i = 0; i < bus->channels(); i++) {
+
+        }
     }
 }

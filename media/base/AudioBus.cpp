@@ -100,7 +100,7 @@ namespace mm {
         for (int i = 0; i < channels(); i++) {
             memcpy(dest->channel(i) + destStartFrame,
                    channel(i) + sourceStartFrame,
-                   sizeof(*channel(i) * frameCount));
+                   sizeof(*channel(i)) * frameCount);
         }
     }
 
