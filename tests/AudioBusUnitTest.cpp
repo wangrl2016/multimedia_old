@@ -4,9 +4,11 @@
 
 #include <memory>
 #include <gtest/gtest.h>
+
 extern "C" {
 #include <libavutil/channel_layout.h>
 }
+
 #include "media/base/AudioBus.h"
 
 namespace mm {
@@ -71,13 +73,13 @@ namespace mm {
                 // Verify that the address returned by channel(i) is a multiple of
                 // AudioBus::kChannelAlignment.
                 ASSERT_EQ(0U, reinterpret_cast<uintptr_t>(
-                        bus->channel(i)) & (AudioBus::kChannelAlignment - 1));
+                                      bus->channel(i)) & (AudioBus::kChannelAlignment - 1));
 
                 // Write into the channel buffer.
                 std::fill(bus->channel(i), bus->channel(i) + bus->frames(), i);
             }
 
-            for (int i = 0; i< bus->channels(); i++)
+            for (int i = 0; i < bus->channels(); i++)
                 verifyArrayIsFilledWithValue(bus->channel(i), bus->frames(), i);
 
             bus->zero();
@@ -101,6 +103,7 @@ namespace mm {
             bus2->copyTo(bus1);
             verifyAreEqual(bus2, bus1);
         }
+
     protected:
         std::vector<float*> mData;
     };
@@ -110,5 +113,53 @@ namespace mm {
         std::unique_ptr<AudioBus> bus = AudioBus::Create(kChannels, kFrameCount);
         verifyChannelAndFrameCount(bus.get());
         verifyReadWriteAndAlignment(bus.get());
+    }
+
+    // Verify an AudioBus created via wrapping a vector works as advertised.
+    TEST_F(AudioBusTest, WrapVector) {
+        mData.reserve(kChannels);
+        for (int i = 0; i < kChannels; i++) {
+            mData.push_back(static_cast<float*>(AlignedAlloc(
+                    sizeof(*mData[i]) * kFrameCount, AudioBus::kChannelAlignment)));
+        }
+
+        std::unique_ptr<AudioBus> bus = AudioBus::WrapVector(kFrameCount, mData);
+        verifyChannelAndFrameCount(bus.get());
+        verifyReadWriteAndAlignment(bus.get());
+    }
+
+    // Verify an AudioBus created via wrapping a memory block works as advertised.
+    TEST_F(AudioBusTest, WrapMemory) {
+        int dataSize = AudioBus::CalculateMemorySize(kChannels, kFrameCount);
+        std::unique_ptr<float, AlignedFreeDeleter> data(static_cast<float*>(
+                                                                AlignedAlloc(dataSize, AudioBus::kChannelAlignment)));
+
+        // Fill the memory with a test value we can check for after wrapping.
+        static const float kTestValue = 3;
+        std::fill(data.get(), data.get() + dataSize / sizeof(*data.get()), kTestValue);
+
+        std::unique_ptr<AudioBus> bus = AudioBus::WrapMemory(kChannels, kFrameCount, data.get());
+        // Verify the test value we filled prior to wrapping.
+        for (int i = 0; i < bus->channels(); i++)
+            verifyArrayIsFilledWithValue(bus->channel(i), bus->frames(), kTestValue);
+        verifyChannelAndFrameCount(bus.get());
+        verifyReadWriteAndAlignment(bus.get());
+
+        // Verify the channel vectors lie within the provided memory block.
+        EXPECT_GE(bus->channel(0), data.get());
+        EXPECT_LT(bus->channel(bus->channels() - 1) + bus->frames(),
+                  data.get() + dataSize / sizeof(*data.get()));
+    }
+
+    // Simulate a shared memory transfer and verify results.
+    TEST_F(AudioBusTest, CopyTo) {
+        // Create one bus with AudioParameters and the other through direct values to
+        // test for parity between the Create() functions.
+        std::unique_ptr<AudioBus> bus1 = AudioBus::Create(kChannels, kFrameCount);
+        std::unique_ptr<AudioBus> bus2 = AudioBus::Create(kChannels, kFrameCount);
+
+        // CopyTest(bus1.get(), bus2.get());
+
+
     }
 }
