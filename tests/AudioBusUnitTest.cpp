@@ -152,7 +152,7 @@ namespace mm {
     }
 
     // Simulate a shared memory transfer and verify results.
-    TEST_F(AudioBusTest, CopyTo) {
+    TEST_F(AudioBusTest, copyTo) {
         // Create one bus with AudioParameters and the other through direct values to
         // test for parity between the Create() functions.
         std::unique_ptr<AudioBus> bus1 = AudioBus::Create(kChannels, kFrameCount);
@@ -190,7 +190,96 @@ namespace mm {
         // Zero first half the frames of each channel.
         bus->zeroFrames(kFrameCount / 2);
         for (int i = 0; i < bus->channels(); i++) {
-
+            verifyArrayIsFilledWithValue(bus->channel(i), kFrameCount / 2, 0);
+            verifyArrayIsFilledWithValue(bus->channel(i) + kFrameCount / 2,
+                                         kFrameCount - kFrameCount / 2, i + 1);
         }
+        EXPECT_FALSE(bus->areFramesZero());
+
+        // Fill the bus with dummy data.
+        for (int i = 0; i < bus->channels(); i++)
+            std::fill(bus->channel(i), bus->channel(i) + bus->frames(), i + 1);
+
+        // Zero the last half of the frames.
+        bus->zeroFramesPartial(kFrameCount / 2, kFrameCount - kFrameCount / 2);
+        for (int i = 0; i < bus->channels(); i++) {
+            verifyArrayIsFilledWithValue(bus->channel(i) + kFrameCount / 2,
+                                         kFrameCount - kFrameCount / 2, 0);
+            verifyArrayIsFilledWithValue(bus->channel(i), kFrameCount / 2, i + 1);
+        }
+        EXPECT_FALSE(bus->areFramesZero());
+
+        // Fill the bus with dummy data.
+        for (int i = 0; i < bus->channels(); i++)
+            std::fill(bus->channel(i), bus->channel(i) + bus->frames(), i + 1);
+
+        // Zero all the frames of each channel.
+        bus->zero();
+        for (int i = 0; i < bus->channels(); i++) {
+            verifyArrayIsFilledWithValue(bus->channel(i), bus->frames(), 0);
+        }
+        EXPECT_TRUE(bus->areFramesZero());
+    }
+
+    // Each test vector represents two channels of data in the following arbitrary
+    // layout: <min, zero, max, min, max / 2, min / 2, zero, max, zero, zero>.
+    static const int kTestVectorSize = 10;
+    static const uint8_t kTestVectorUint8[kTestVectorSize] = {
+            0, -INT8_MIN, UINT8_MAX,
+            0, INT8_MAX / 2 + 128, INT8_MIN / 2 + 128,
+            -INT8_MIN, UINT8_MAX, -INT8_MIN,
+            -INT8_MIN
+    };
+
+    static const int16_t kTestVectorInt16[kTestVectorSize] = {
+            INT16_MIN, 0, INT16_MAX, INT16_MIN, INT16_MAX / 2,
+            INT16_MIN / 2, 0, INT16_MAX, 0, 0
+    };
+
+    static const int32_t kTestVectorInt32[kTestVectorSize] = {
+            INT32_MIN, 0, INT32_MAX, INT32_MIN, INT32_MAX / 2,
+            INT32_MIN / 2, 0, INT32_MAX, 0, 0};
+
+    static const float kTestVectorFloat32[kTestVectorSize] = {
+            -1.0f, 0.0f, 1.0f, -1.0f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f};
+
+    // This is based on kTestVectorFloat32, but has some values outside of
+    // sanity.
+    static const float kTestVectorFloat32Invalid[kTestVectorSize] = {
+            -5.0f,
+            0.0f,
+            5.0f,
+            -1.0f,
+            0.5f,
+            -0.5f,
+            0.0f,
+            std::numeric_limits<float>::infinity(),
+            std::numeric_limits<float>::signaling_NaN(),
+            std::numeric_limits<float>::quiet_NaN()};
+
+    static const float kTestVectorFloat32Sanitized[kTestVectorSize] = {
+            -1.0f, 0.0f, 1.0f, -1.0f, 0.5f, -0.5f, 0.0f, 1.0f, -1.0f, -1.0f};
+
+    // Expected results.
+    static const int kTestVectorFrameCount = kTestVectorSize / 2;
+    static const float kTestVectorResult[][kTestVectorFrameCount] = {
+            {-1.0f, 1.0f,  0.5f,  0.0f, 0.0f},
+            {0.0f,  -1.0f, -0.5f, 1.0f, 0.0f}};
+    static const int kTestVectorChannelCount = std::size(kTestVectorResult);
+
+    // Verify fromInterleaved() de-interleaves audio in supported formats correctly.
+    TEST_F(AudioBusTest, fromInterleaved) {
+        std::unique_ptr<AudioBus> bus =
+                AudioBus::Create(kTestVectorChannelCount, kTestVectorFrameCount);
+        std::unique_ptr<AudioBus> expected =
+                AudioBus::Create(kTestVectorChannelCount, kTestVectorFrameCount);
+
+        for (int ch = 0; ch < kTestVectorChannelCount; ch++) {
+            memcpy(expected->channel(ch), kTestVectorResult[ch],
+                   kTestVectorFrameCount * sizeof(*expected->channel(ch)));
+        }
+
+        bus->zero();
+        bus->fromInterleaved<>()
     }
 }
