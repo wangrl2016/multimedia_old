@@ -10,6 +10,7 @@ extern "C" {
 }
 
 #include "media/base/AudioBus.h"
+#include "media/base/AudioSampleTypes.h"
 
 namespace mm {
     static const int kChannels = 6;
@@ -280,6 +281,5 @@ namespace mm {
         }
 
         bus->zero();
-        bus->fromInterleaved<>()
     }
 }
