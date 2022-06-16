@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package tutorial;
+
+message Person {
+  // optional: the field may or may not be set.
+  // repeated: the field may be repeated any number of times (including zero).
+  // required: a value for the field must be provided,
+  // otherwise the message will be consider "uninitialized".
+  optional string name = 1;
+  optional int32 id = 2;
+  optional string email = 3;
+
+  enum PhoneType {
+    MOBILE = 0;
+    HOME = 1;
+    WORK = 2;
+  }
+
+  message PhoneNumber {
+    optional string number = 1;
+    optional PhoneType type = 2;
+  }
+
+  repeated PhoneNumber phones = 4;
+}
+
+message AddressBook {
+  repeated Person people = 1;
+}
