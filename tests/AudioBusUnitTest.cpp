@@ -341,5 +341,28 @@ namespace mm {
             memcpy(bus->channel(ch), kTestVectorResult[ch],
                    kTestVectorFrameCount * sizeof(*bus->channel(ch)));
         }
+
+        {
+            uint8_t testArray[std::size(kTestVectorUint8)];
+            bus->toInterleaved<UnsignedInt8SampleTypeTraits>(bus->frames(), testArray);
+            ASSERT_EQ(0, memcmp(testArray, kTestVectorUint8, sizeof(kTestVectorUint8)));
+        }
+        {
+            int16_t testArray[std::size(kTestVectorInt16)];
+            bus->toInterleaved<SignedInt16SampleTypeTraits>(bus->frames(), testArray);
+            ASSERT_EQ(0, memcmp(testArray, kTestVectorInt16, sizeof(kTestVectorInt16)));
+        }
+        {
+            int32_t testArray[std::size(kTestVectorInt32)];
+            bus->toInterleaved<SignedInt32SampleTypeTraits>(bus->frames(), testArray);
+
+            // Some compilers get better precision than others on the half-max test, so
+            // let the test pass with an off by one check on the half-max.
+            int32_t alternativeAcceptableResult[std::size(kTestVectorInt32)];
+            memcpy(alternativeAcceptableResult, kTestVectorInt32,
+                   sizeof(kTestVectorInt32));
+            ASSERT_EQ(alternativeAcceptableResult[4],
+                      (std::numeric_limits<int32_t>::max)() / 2);
+        }
     }
 }

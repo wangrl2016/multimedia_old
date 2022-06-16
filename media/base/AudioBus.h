@@ -88,7 +88,7 @@ namespace mm {
         template<class TargetSampleTypeTraits>
         void toInterleavedPartial(int readOffsetInFrames,
                                   int numFramesToRead,
-                                  typename TargetSampleTypeTraits::ValueType destBuffer) const;
+                                  typename TargetSampleTypeTraits::ValueType* destBuffer) const;
 
         // Helper method for copying channel data from one AudioBus to another.  Both
         // AudioBus object must have the same frames() and channels().
@@ -222,7 +222,7 @@ namespace mm {
     void AudioBus::toInterleavedPartial(
             int readOffsetInFrames,
             int numFramesToRead,
-            typename TargetSampleTypeTraits::ValueType dest) const {
+            typename TargetSampleTypeTraits::ValueType* dest) const {
         CheckOverflow(readOffsetInFrames, numFramesToRead, mFrames);
         CopyConvertFromAudioBusToInterleavedTarget<TargetSampleTypeTraits>(
                 this, readOffsetInFrames, numFramesToRead, dest);
