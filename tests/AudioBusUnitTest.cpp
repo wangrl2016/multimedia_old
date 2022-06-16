@@ -363,6 +363,31 @@ namespace mm {
                    sizeof(kTestVectorInt32));
             ASSERT_EQ(alternativeAcceptableResult[4],
                       (std::numeric_limits<int32_t>::max)() / 2);
+            alternativeAcceptableResult[4]++;
+
+            ASSERT_TRUE(
+                    memcmp(testArray, kTestVectorInt32, sizeof(kTestVectorInt32)) == 0 ||
+                    memcmp(testArray, alternativeAcceptableResult,
+                           sizeof(alternativeAcceptableResult)) == 0);
         }
+        {
+            float testArray[std::size(kTestVectorFloat32)];
+            bus->toInterleaved<Float32SampleTypeTraits>(bus->frames(), testArray);
+            ASSERT_EQ(0,
+                      memcmp(testArray, kTestVectorFloat32, sizeof(kTestVectorFloat32)));
+        }
+    }
+
+    TEST_F(AudioBusTest, toInterleavedSanitized) {
+        std::unique_ptr<AudioBus> bus =
+                AudioBus::Create(kTestVectorChannelCount, kTestVectorFrameCount);
+        bus->fromInterleaved<Float32SampleTypeTraits>(kTestVectorFloat32Invalid,
+                                                      bus->frames());
+        // Verify fromInterleaved applied no sanity.
+        ASSERT_EQ(bus->channel(0)[0], kTestVectorFloat32Invalid[0]);
+        float testArray[std::size(kTestVectorFloat32Sanitized)];
+        bus->toInterleaved<Float32SampleTypeTraits>(bus->frames(), testArray);
+        for (size_t i = 0; i < std::size(kTestVectorFloat32Sanitized); i++)
+            ASSERT_EQ(kTestVectorFloat32Sanitized[i], testArray[i]);
     }
 }
