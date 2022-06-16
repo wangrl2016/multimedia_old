@@ -228,8 +228,8 @@ namespace mm {
     static const uint8_t kTestVectorUint8[kTestVectorSize] = {
             0, -INT8_MIN, UINT8_MAX,
             0, INT8_MAX / 2 + 128, INT8_MIN / 2 + 128,
-            - INT8_MIN, UINT8_MAX, - INT8_MIN,
-            - INT8_MIN};
+            -INT8_MIN, UINT8_MAX, -INT8_MIN,
+            -INT8_MIN};
 
     static const int16_t kTestVectorInt16[kTestVectorSize] = {
             INT16_MIN, 0, INT16_MAX, INT16_MIN, INT16_MAX / 2,
@@ -286,5 +286,60 @@ namespace mm {
         // slightly more permissive than int16_t and int32_t calculations.
         verifyAreEqualWithEpsilon(bus.get(), expected.get(),
                                   1.0f / ((std::numeric_limits<uint8_t>::max)() - 1));
+
+        bus->zero();
+        bus->fromInterleaved<SignedInt16SampleTypeTraits>(kTestVectorInt16,
+                                                          kTestVectorFrameCount);
+        verifyAreEqualWithEpsilon(
+                bus.get(),
+                expected.get(),
+                1.0f / (static_cast<float>((std::numeric_limits<uint16_t>::max)()) + 1.0f));
+
+        bus->zero();
+        bus->fromInterleaved<SignedInt32SampleTypeTraits>(kTestVectorInt32,
+                                                          kTestVectorFrameCount);
+        verifyAreEqualWithEpsilon(
+                bus.get(), expected.get(),
+                1.0f / static_cast<float>((std::numeric_limits<uint32_t>::max)()));
+
+        bus->zero();
+        bus->fromInterleaved<Float32SampleTypeTraits>(kTestVectorFloat32,
+                                                      kTestVectorFrameCount);
+        verifyAreEqual(bus.get(), expected.get());
+    }
+
+    // Verify fromInterleavedPartial() de-interleaves audio correctly.
+    TEST_F(AudioBusTest, fromInterleavedPartial) {
+        // Only de-interleave the middle two frames in each channel.
+        static const int kPartialStart = 1;
+        static const int kPartialFrames = 2;
+        ASSERT_LE(kPartialStart + kPartialFrames, kTestVectorFrameCount);
+
+        std::unique_ptr<AudioBus> bus =
+                AudioBus::Create(kTestVectorChannelCount, kTestVectorFrameCount);
+        std::unique_ptr<AudioBus> expected =
+                AudioBus::Create(kTestVectorChannelCount, kTestVectorFrameCount);
+        expected->zero();
+        for (int ch = 0; ch < kTestVectorChannelCount; ch++) {
+            memcpy(expected->channel(ch) + kPartialStart,
+                   kTestVectorResult[ch] + kPartialStart,
+                   kPartialFrames * sizeof(*expected->channel(ch)));
+        }
+        bus->zero();
+        bus->fromInterleavedPartial<SignedInt32SampleTypeTraits>(
+                kTestVectorInt32 + kPartialStart * bus->channels(), kPartialStart,
+                kPartialFrames);
+        verifyAreEqual(bus.get(), expected.get());
+    }
+
+    // Verify toInterleaved() interleaves audio in supported format correctly.
+    TEST_F(AudioBusTest, toInterleaved) {
+        std::unique_ptr<AudioBus> bus =
+                AudioBus::Create(kTestVectorChannelCount, kTestVectorFrameCount);
+        // Fill the bus with our test vector.
+        for (int ch = 0; ch < bus->channels(); ch++) {
+            memcpy(bus->channel(ch), kTestVectorResult[ch],
+                   kTestVectorFrameCount * sizeof(*bus->channel(ch)));
+        }
     }
 }
