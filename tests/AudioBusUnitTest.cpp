@@ -285,6 +285,6 @@ namespace mm {
         // Biased uint8_t calculations have poor precision, so the epsilon here is
         // slightly more permissive than int16_t and int32_t calculations.
         verifyAreEqualWithEpsilon(bus.get(), expected.get(),
-                                  1.0f / (std::numeric_limits<uint8_t>::max() - 1));
+                                  1.0f / ((std::numeric_limits<uint8_t>::max)() - 1));
     }
 }

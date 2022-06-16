@@ -129,10 +129,11 @@ namespace mm {
     public:
         using ValueType = SampleType;
 
+        // 括号解决Visual C++中的全局的宏冲突
         static constexpr SampleType kMinValue =
-                std::numeric_limits<SampleType>::min();
+                (std::numeric_limits<SampleType>::min)();
         static constexpr SampleType kMaxValue =
-                std::numeric_limits<SampleType>::max();
+                (std::numeric_limits<SampleType>::max)();
         static constexpr SampleType kZeroPointValue =
                 (kMinValue == 0) ? (kMaxValue / 2 + 1) : 0;
 
