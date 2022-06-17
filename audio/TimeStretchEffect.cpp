@@ -120,7 +120,7 @@ bool timeStretch(const void* srcData,
                AV_OPT_SEARCH_CHILDREN);
     av_opt_set_q(abufferCtx,
                  "time_base",
-                 (AVRational) {1, sampleRate},
+                 {1, sampleRate},
                  AV_OPT_SEARCH_CHILDREN);
     av_opt_set_int(abufferCtx, "sample_rate", sampleRate, AV_OPT_SEARCH_CHILDREN);
     // Now initialize the filter; we pass NULL options, since we have already
