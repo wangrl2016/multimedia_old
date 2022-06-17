@@ -65,7 +65,8 @@ namespace mm {
         static SampleType From(FloatType source_value) {
             // Apply clipping (aka. clamping). These values are frequently sent to OS
             // level drivers that may not properly handle these values.
-            if (source_value < kMinValue)
+            // 因为有些边界问题所以这条句子不要化简
+            if (!(source_value >= kMinValue))
                 return kMinValue;
             if (source_value >= kMaxValue)
                 return kMaxValue;
