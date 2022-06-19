@@ -4,6 +4,7 @@
 
 #include <glog/logging.h>
 #include "media/base/AudioBus.h"
+#include "media/base/AudioSampleTypes.h"
 #include "media/base/Limits.h"
 
 namespace mm {
@@ -83,7 +84,7 @@ namespace mm {
             float* destPtr = dest->channel(i);
             const float* sourcePtr = channel(i);
             for (int j = 0; j < frames(); j++)
-                destPtr[j] = sourcePtr[j] < -1.0f ? -1.0f : sourcePtr[j] > 1.0f ? 1.0f : sourcePtr[j];
+                destPtr[j] = Float32SampleTypeTraits::FromFloat(sourcePtr[j]);
         }
     }
 

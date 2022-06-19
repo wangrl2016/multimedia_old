@@ -226,10 +226,10 @@ namespace mm {
     // layout: <min, zero, max, min, max / 2, min / 2, zero, max, zero, zero>.
     static const int kTestVectorSize = 10;
     static const uint8_t kTestVectorUint8[kTestVectorSize] = {
-            0, -INT8_MIN, UINT8_MAX,
+            0, - INT8_MIN, UINT8_MAX,
             0, INT8_MAX / 2 + 128, INT8_MIN / 2 + 128,
-            -INT8_MIN, UINT8_MAX, -INT8_MIN,
-            -INT8_MIN};
+            - INT8_MIN, UINT8_MAX, - INT8_MIN,
+            - INT8_MIN};
 
     static const int16_t kTestVectorInt16[kTestVectorSize] = {
             INT16_MIN, 0, INT16_MAX, INT16_MIN, INT16_MAX / 2,
@@ -389,5 +389,180 @@ namespace mm {
         bus->toInterleaved<Float32SampleTypeTraits>(bus->frames(), testArray);
         for (size_t i = 0; i < std::size(kTestVectorFloat32Sanitized); i++)
             ASSERT_EQ(kTestVectorFloat32Sanitized[i], testArray[i]);
+    }
+
+    TEST_F(AudioBusTest, copyAndClipTo) {
+        auto bus = AudioBus::Create(kTestVectorChannelCount, kTestVectorFrameCount);
+        bus->fromInterleaved<Float32SampleTypeTraits>(kTestVectorFloat32Invalid,
+                                                      bus->frames());
+        auto expected =
+                AudioBus::Create(kTestVectorChannelCount, kTestVectorFrameCount);
+        expected->fromInterleaved<Float32SampleTypeTraits>(
+                kTestVectorFloat32Sanitized, bus->frames());
+
+        // Verify fromInterleaved applied no sanity.
+        ASSERT_EQ(bus->channel(0)[0], kTestVectorFloat32Invalid[0]);
+
+        std::unique_ptr<AudioBus> copyToBus =
+                AudioBus::Create(kTestVectorChannelCount, kTestVectorFrameCount);
+        bus->copyAndClipTo(copyToBus.get());
+
+        for (int ch = 0; ch < expected->channels(); ++ch) {
+            for (int i = 0; i < expected->frames(); ++i)
+                ASSERT_EQ(copyToBus->channel(ch)[i], expected->channel(ch)[i]);
+        }
+
+        ASSERT_EQ(expected->channels(), copyToBus->channels());
+        ASSERT_EQ(expected->frames(), copyToBus->frames());
+    }
+
+    // Verify toInterleavedPartial() interleaves audio correctly.
+    TEST_F(AudioBusTest, toInterleavedPartial) {
+        // Only interleave the middle two frames in each channel.
+        static const int kPartialStart = 1;
+        static const int kPartialFrames = 2;
+        ASSERT_LE(kPartialStart + kPartialFrames, kTestVectorFrameCount);
+
+        std::unique_ptr<AudioBus> expected =
+                AudioBus::Create(kTestVectorChannelCount, kTestVectorFrameCount);
+        for (int ch = 0; ch < kTestVectorChannelCount; ++ch) {
+            memcpy(expected->channel(ch), kTestVectorResult[ch],
+                   kTestVectorFrameCount * sizeof(*expected->channel(ch)));
+        }
+
+        float testArray[std::size(kTestVectorFloat32)];
+        expected->toInterleavedPartial<Float32SampleTypeTraits>(
+                kPartialStart, kPartialFrames, testArray);
+        ASSERT_EQ(0, memcmp(testArray, kTestVectorFloat32 +
+                                       kPartialStart * kTestVectorChannelCount,
+                            kPartialFrames * sizeof(*kTestVectorFloat32) *
+                            kTestVectorChannelCount));
+    }
+
+    struct ZeroingOutTestData {
+        static constexpr int kChannelCount = 2;
+        static constexpr int kFrameCount = 10;
+        static constexpr int kInterleavedFrameCount = 3;
+
+        std::unique_ptr<AudioBus> busUnderTest;
+        std::vector<float> interleavedDummyFrames;
+
+        ZeroingOutTestData() {
+            // Create a bus and fill each channel with a test pattern of form
+            // [1.0, 2.0, 3.0, ...]
+            busUnderTest = AudioBus::Create(kChannelCount, kFrameCount);
+            for (int ch = 0; ch < kChannelCount; ++ch) {
+                auto* sampleArrayForCurrentChannel = busUnderTest->channel(ch);
+                for (int frameIndex = 0; frameIndex < kFrameCount; frameIndex++) {
+                    sampleArrayForCurrentChannel[frameIndex] =
+                            static_cast<float>(frameIndex + 1);
+                }
+            }
+
+            // Create a vector containing dummy interleaved samples.
+            static const float kDummySampleValue = 0.123f;
+            interleavedDummyFrames.resize(kChannelCount * kInterleavedFrameCount);
+            std::fill(interleavedDummyFrames.begin(), interleavedDummyFrames.end(),
+                      kDummySampleValue);
+        }
+    };
+
+    TEST_F(AudioBusTest, fromInterleavedZerosOutUntouchedFrames) {
+        ZeroingOutTestData testData;
+
+        // exercise
+        testData.busUnderTest->fromInterleaved<Float32SampleTypeTraits>(
+                &testData.interleavedDummyFrames[0], testData.kInterleavedFrameCount);
+
+        // verification
+        for (int ch = 0; ch < testData.kChannelCount; ch++) {
+            auto* sampleArrayForCurrentChannel =
+                    testData.busUnderTest->channel(ch);
+            for (int frameIndex = testData.kInterleavedFrameCount;
+                 frameIndex < testData.kFrameCount; frameIndex++) {
+                ASSERT_EQ(0.0f, sampleArrayForCurrentChannel[frameIndex]);
+            }
+        }
+    }
+
+    TEST_F(AudioBusTest, fromInterleavedPartialDoesNotZeroOutUntouchedFrames) {
+        {
+            ZeroingOutTestData testData;
+            static const int kWriteOffsetInFrames = 0;
+
+            // exercise
+            testData.busUnderTest->fromInterleavedPartial<Float32SampleTypeTraits>(
+                    &testData.interleavedDummyFrames[0], kWriteOffsetInFrames,
+                    testData.kInterleavedFrameCount);
+
+            // verification
+            for (int ch = 0; ch < testData.kChannelCount; ch++) {
+                auto* sampleArrayForCurrentChannel =
+                        testData.busUnderTest->channel(ch);
+                for (int frameIndex =
+                        testData.kInterleavedFrameCount + kWriteOffsetInFrames;
+                     frameIndex < testData.kFrameCount; frameIndex++) {
+                    ASSERT_EQ(frameIndex + 1,
+                              sampleArrayForCurrentChannel[frameIndex]);
+                }
+            }
+        }
+        {
+            ZeroingOutTestData testData;
+            static const int kWriteOffsetInFrames = 2;
+
+            // exercise
+            testData.busUnderTest->fromInterleavedPartial<Float32SampleTypeTraits>(
+                    &testData.interleavedDummyFrames[0], kWriteOffsetInFrames,
+                    testData.kInterleavedFrameCount);
+
+            // verification
+            for (int ch = 0; ch < testData.kChannelCount; ch++) {
+                auto* sampleArrayForCurrentChannel =
+                        testData.busUnderTest->channel(ch);
+                // Check untouched frames before write offset.
+                for (int frameIndex = 0; frameIndex < kWriteOffsetInFrames;
+                     frameIndex++) {
+                    ASSERT_EQ(frameIndex + 1,
+                              sampleArrayForCurrentChannel[frameIndex]);
+                }
+                // Check untouched frames after write.
+                for (int frameIndex =
+                        testData.kInterleavedFrameCount + kWriteOffsetInFrames;
+                     frameIndex < testData.kFrameCount; frameIndex++) {
+                    ASSERT_EQ(frameIndex + 1,
+                              sampleArrayForCurrentChannel[frameIndex]);
+                }
+            }
+        }
+    }
+
+    TEST_F(AudioBusTest, scale) {
+        std::unique_ptr<AudioBus> bus = AudioBus::Create(kChannels, kFrameCount);
+
+        // Fill the bus with dummy data.
+        static const float kFillValue = 1;
+        for (int i = 0; i < bus->channels(); i++)
+            std::fill(bus->channel(i), bus->channel(i) + bus->frames(), kFillValue);
+
+        // Adjust by an invalid volume and ensure volume is unchanged.
+        bus->scale(-1);
+        for (int i = 0; i < bus->channels(); i++) {
+            verifyArrayIsFilledWithValue(bus->channel(i), bus->frames(), kFillValue);
+        }
+
+        // Verify correct volume adjustment.
+        static const float kVolume = 0.5;
+        bus->scale(kVolume);
+        for (int i = 0; i < bus->channels(); i++) {
+            verifyArrayIsFilledWithValue(bus->channel(i), bus->frames(),
+                                         kFillValue * kVolume);
+        }
+
+        // Verify zero volume case.
+        bus->scale(0);
+        for (int i = 0; i < bus->channels(); i++) {
+            verifyArrayIsFilledWithValue(bus->channel(i), bus->frames(), 0);
+        }
     }
 }
