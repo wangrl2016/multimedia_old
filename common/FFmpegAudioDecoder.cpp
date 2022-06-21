@@ -73,6 +73,20 @@ namespace mm {
             return false;
         }
 
+        mFrame = av_frame_alloc();
+        if (!mFrame) {
+            LOG(ERROR) << "Error allocating a frame";
+            this->close();
+            return false;
+        }
+
+        mPacket = av_packet_alloc();
+        if (!mPacket) {
+            LOG(ERROR) << "Error allocating a packet";
+            this->close();
+            return false;
+        }
+
         // Store initial values to guard against midstream configuration changes.
         mSrcAudioProperties.channelCount = av_get_channel_layout_nb_channels(
                 mCodecCtx->channel_layout);

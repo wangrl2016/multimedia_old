@@ -67,6 +67,9 @@ namespace mm {
         SwrContext* mSwrCtx = nullptr;
         const AVCodec* mCodec = nullptr;
 
+        AVPacket* mPacket = nullptr;
+        AVFrame* mFrame = nullptr;
+
         int mStreamIndex = -1;
 
         AudioProperties mSrcAudioProperties{};
