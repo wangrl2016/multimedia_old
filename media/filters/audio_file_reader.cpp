@@ -5,7 +5,7 @@
 #include "base/time/Time.h"
 #include "media/base/AudioSampleTypes.h"
 #include "media/ffmpeg/FFmpegCommon.h"
-#include "media/filters/AudioFileReader.h"
+#include "media/filters/audio_file_reader.h"
 
 namespace mm {
     // AAC(M4A) decoding specific constants.

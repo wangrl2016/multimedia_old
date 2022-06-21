@@ -20,8 +20,9 @@ target_sources(multimedia
         common/Utilities.cpp
         media/base/AudioBus.cpp
         media/ffmpeg/FFmpegCommon.cpp
-        media/filters/AudioFileReader.cpp
+        media/filters/audio_file_reader.cpp
         media/filters/ffmpeg_glue.cpp
+        media/filters/in_memory_url_protocol.cc
         )
 
 set(EXAMPLES
@@ -45,7 +46,10 @@ endforeach()
 enable_testing()
 
 add_executable(MMUnitTest
-        tests/AudioBusUnitTest.cpp)
+        tests/audio_bus_unittest.cc
+        tests/audio_file_reader_unittest.cc
+        tests/in_memory_url_protocol_unittest.cc
+        )
 
 target_link_libraries(MMUnitTest
         PRIVATE
