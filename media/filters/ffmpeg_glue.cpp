@@ -8,7 +8,7 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 }
 
-#include "media/filters/FFmpegGlue.h"
+#include "media/filters/ffmpeg_glue.h"
 
 namespace mm {
     // Internal buffer size used by AVIO for reading.

@@ -21,7 +21,7 @@ target_sources(multimedia
         media/base/AudioBus.cpp
         media/ffmpeg/FFmpegCommon.cpp
         media/filters/AudioFileReader.cpp
-        media/filters/FFmpegGlue.cpp
+        media/filters/ffmpeg_glue.cpp
         )
 
 set(EXAMPLES

@@ -13,4 +13,9 @@ namespace mm {
         int64_t microseconds = av_rescale_q(timestamp, timeBase, kMicrosBase);
         return microseconds;
     }
+
+    int64_t ConvertToTimeBase(const AVRational& time_base,
+                              const int64_t microseconds) {
+        return av_rescale_q(microseconds, kMicrosBase, time_base);
+    }
 }
