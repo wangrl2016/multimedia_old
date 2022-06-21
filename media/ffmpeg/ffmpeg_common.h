@@ -32,18 +32,11 @@ namespace mm {
     int64_t ConvertToTimeBase(const AVRational& time_base,
                               const int64_t microseconds);
 
+    // Allocates, populates and returns a wrapped AVCodecContext from the
+    // AVCodecParameters in |stream|. On failure, returns a wrapped nullptr.
+    // Wrapping helps ensure eventual destruction of the AVCodecContext.
     std::unique_ptr<AVCodecContext, ScopedPtrAVFreeContext>
-            AVStreamToAVCodecContext(const AVStream* stream) {
-        std::unique_ptr<AVCodecContext, ScopedPtrAVFreeContext> codec_context(
-                avcodec_alloc_context3(nullptr));
-        if (avcodec_parameters_to_context(codec_context.get(), stream->codecpar) <
-            0) {
-            return nullptr;
-        }
-
-        return codec_context;
-    }
-
+            AVStreamToAVCodecContext(const AVStream* stream);
 }
 
 #endif //MULTIMEDIA_FFMPEG_COMMON_H

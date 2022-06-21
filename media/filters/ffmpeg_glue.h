@@ -27,7 +27,7 @@ extern "C" {
 #include <libavformat/avformat.h>
 }
 
-#include "media/ffmpeg/ffmpeg_deleters.h"
+#include "media/ffmpeg/ffmpeg_common.h"
 
 namespace mm {
     class FFmpegURLProtocol {

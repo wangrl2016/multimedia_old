@@ -6,7 +6,7 @@
 #include <cmath>
 #include "common/FFmpegAudioDecoder.h"
 #include "media/base/Constants.h"
-#include "media/ffmpeg/FFmpegCommon.h"
+#include "media/ffmpeg/ffmpeg_common.h"
 
 namespace mm {
     // AAC(M4A) decoding specific constants.

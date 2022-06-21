@@ -4,7 +4,7 @@
 
 #include "base/time/Time.h"
 #include "media/base/AudioSampleTypes.h"
-#include "media/ffmpeg/FFmpegCommon.h"
+#include "media/ffmpeg/ffmpeg_common.h"
 #include "media/filters/audio_file_reader.h"
 
 namespace mm {

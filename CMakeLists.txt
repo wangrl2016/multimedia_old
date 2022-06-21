@@ -19,7 +19,8 @@ target_sources(multimedia
         common/FFmpegAudioDecoder.cpp
         common/Utilities.cpp
         media/base/AudioBus.cpp
-        media/ffmpeg/FFmpegCommon.cpp
+        media/ffmpeg/ffmpeg_common.cc
+        media/ffmpeg/ffmpeg_deleters.cc
         media/filters/audio_file_reader.cpp
         media/filters/ffmpeg_glue.cpp
         media/filters/in_memory_url_protocol.cc
