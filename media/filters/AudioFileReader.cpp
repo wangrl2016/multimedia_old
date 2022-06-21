@@ -36,7 +36,61 @@ namespace mm {
     int AudioFileReader::Read(
             std::vector<std::unique_ptr<AudioBus>>* decoded_audio_packets,
             int packets_to_read) {
+        DCHECK(glue_ && codec_context_)
+                            << "AudioFileReader::Read() : reader is not opened!";
+        int total_frames = 0;
+        AVPacket packet;
+        std::unique_ptr<AVFrame, ScopedPtrAVFreeFrame> frame(av_frame_alloc());
+        int packets_read = 0;
+        DecodeStatus status = DecodeStatus::kOkay;
+        while (packets_read++ < packets_to_read && ReadPacket(&packet)) {
+            // 进行解码操作
+            bool sent_packet = false, frames_remaining = true, decoder_error = false;
+            while (!sent_packet || frames_remaining) {
+                if (!sent_packet) {
+                    const int result = avcodec_send_packet(codec_context_.get(), &packet);
+                    if (result < 0 && result != AVERROR(EAGAIN) && result != AVERROR_EOF) {
+                        DLOG(ERROR) << "Failed to send packet for decoding: " << result;
+                        status = DecodeStatus::kSendPacketFailed;
+                        // 退出里层的while循环
+                        break;
+                    }
+                    sent_packet = result != AVERROR(EAGAIN);
+                }
 
+                // See if any frames are available. If we receive an EOF or EAGAIN, there
+                // should be nothing left to do this pass since we've already provided the
+                // only input packet that we have.
+                const int result = avcodec_receive_frame(codec_context_.get(), frame.get());
+                if (result == AVERROR_EOF || result == AVERROR(EAGAIN)) {
+                    frames_remaining = false;
+                    if (result == AVERROR(EAGAIN)) {
+                        CHECK(sent_packet) << "avcodec_receive_frame() and "
+                                              "avcodec_send_packet() both returned EAGAIN, "
+                                              "which is an API violation.";
+                    }
+                    continue;
+                } else if (result < 0) {
+                    DLOG(ERROR) << "Failed to decode frame: " << result;
+                    decoder_error = true;
+                    status = DecodeStatus::kDecodeFrameFailed;
+                    continue;
+                }
+
+                const bool frame_processing_success =
+                        OnNewFrame(&total_frames, decoded_audio_packets, frame.get());
+                av_frame_unref(frame.get());
+                if (!frame_processing_success) {
+                    status = DecodeStatus::kFrameProcessingFailed;
+                } else {
+                    status = DecodeStatus::kOkay;
+                }
+            }
+            av_packet_unref(&packet);
+            if (status != DecodeStatus::kOkay)
+                break;
+        }
+        return total_frames;
     }
 
     bool AudioFileReader::HasKnownDuration() const {

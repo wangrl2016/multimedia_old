@@ -9,6 +9,25 @@
 #include "media/filters/ffmpeg_glue.h"
 
 namespace mm {
+    enum class DecodeStatus {
+        // Everything went just okay.
+        kOkay,
+
+        // Indicates that avcodec_send_packet() failed on the current packet. This
+        // error is fatal and indicates the decoding loop is no longer viable.
+        kSendPacketFailed,
+
+        // Indicates that avcodec_receive_frame() failed on some packet; it may be a
+        // packet sent in the past. If |continue_on_decoding_errors| is true, this
+        // code is recoverable and may be ignored.
+        kDecodeFrameFailed,
+
+        // Returned when FrameReadyCB returns false which indicates that an internal
+        // error has occurred; will immediately stop the decoding loop. This should
+        // not be considered recoverable since internal loop state is unknown.
+        kFrameProcessingFailed,
+    };
+
     class AudioFileReader {
     public:
         // Audio file data will be read using the given protocol.
