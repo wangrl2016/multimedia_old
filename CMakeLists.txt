@@ -50,6 +50,7 @@ add_executable(MMUnitTest
         tests/audio_bus_unittest.cc
         tests/audio_file_reader_unittest.cc
         tests/in_memory_url_protocol_unittest.cc
+        tests/vector_unittest.cc
         )
 
 target_link_libraries(MMUnitTest
