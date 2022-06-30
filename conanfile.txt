@@ -1,9 +1,13 @@
 [requires]
+openssl/1.1.1o
 ffmpeg/5.0
 gtest/1.11.0
 glog/0.6.0
 imgui/1.87
 sdl/2.0.20
+boost/1.78.0
+grpc/1.44.0
+protobuf/3.20.0
 
 [generators]
 cmake

@@ -31,6 +31,7 @@ set(EXAMPLES
         audio/DemuxDecode.cpp
         audio/TimeStretchEffect.cpp
         audio/WavFormat.cpp
+        examples/md5_example.cpp
         )
 
 foreach(EXAMPLE ${EXAMPLES})
